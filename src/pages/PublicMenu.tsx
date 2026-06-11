@@ -365,6 +365,10 @@ export default function PublicMenu() {
           </div>
         </div>
       </footer>
+<footer style={{ textAlign: 'center', padding: '30px 10px', marginTop: '50px', borderTop: '1px solid #333', color: '#888', fontSize: '12px' }}>
+  <p>© {new Date().getFullYear()} جميع الحقوق محفوظة لـ Luxcod</p>
+  <p style={{ marginTop: '5px' }}>حلول برمجية مبتكرة للأعمال</p>
+</footer>
 
     </div>
   );
