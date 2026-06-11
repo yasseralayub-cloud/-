@@ -142,6 +142,29 @@ export default function PublicMenu() {
               >
                 {isArabic ? 'استكشف القائمة' : 'Explore Menu'}
               </button>
+              <div style={{ textAlign: 'center', marginTop: '20px', marginBottom: '20px' }}>
+  <a 
+    href="https://luxcod.online" 
+    target="_blank" 
+    rel="noopener noreferrer" 
+    style={{ 
+      display: 'inline-flex', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      gap: '10px', 
+      textDecoration: 'none', 
+      color: 'white',
+      padding: '10px 20px',
+      borderRadius: '12px',
+      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+      border: '1px solid rgba(255, 255, 255, 0.1)'
+    }}
+  >
+    <img src="/logo.png" alt="Luxcod" style={{ width: '35px', height: '35px', borderRadius: '5px' }} />
+    <span style={{ fontSize: '14px', fontWeight: 'bold' }}>تم الإنشاء بواسطة Luxcod</span>
+  </a>
+</div>
+
             </div>
           </motion.div>
 
