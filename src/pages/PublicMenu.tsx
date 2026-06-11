@@ -143,26 +143,47 @@ export default function PublicMenu() {
                 {isArabic ? 'استكشف القائمة' : 'Explore Menu'}
               </button>
               <div style={{ textAlign: 'center', marginTop: '20px', marginBottom: '20px' }}>
-  <a 
-    href="https://luxcod.online" 
-    target="_blank" 
-    rel="noopener noreferrer" 
-    style={{ 
-      display: 'inline-flex', 
-      alignItems: 'center', 
-      justifyContent: 'center', 
-      gap: '10px', 
-      textDecoration: 'none', 
-      color: 'white',
+  <div style={{ textAlign: 'center', marginTop: '25px', marginBottom: '25px' }}>
+  <a
+    href="https://luxcod.online"
+    target="_blank"
+    rel="noopener noreferrer"
+    style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '12px',
+      textDecoration: 'none',
+      color: '#fff',
       padding: '10px 20px',
-      borderRadius: '12px',
+      borderRadius: '20px',
       backgroundColor: 'rgba(255, 255, 255, 0.05)',
-      border: '1px solid rgba(255, 255, 255, 0.1)'
+      border: '1px solid rgba(255, 255, 255, 0.2)',
+      boxShadow: '0 0 10px rgba(100, 180, 255, 0.2)', // توهج ناعم جداً
+      animation: 'pulse 3s infinite', // تأثير نبض هادئ
+      transition: 'all 0.3s ease'
     }}
   >
-    <img src="/logo.png" alt="Luxcod" style={{ width: '35px', height: '35px', borderRadius: '5px' }} />
-    <span style={{ fontSize: '14px', fontWeight: 'bold' }}>تم الإنشاء بواسطة Luxcod</span>
+    <img
+      src="/logo.png"
+      alt="Luxcod"
+      style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover' }}
+    />
+    <span style={{ fontSize: '14px', fontWeight: '500' }}>
+      تم الإنشاء بواسطة <span style={{ color: '#FFD700' }}>Luxcod</span>
+    </span>
   </a>
+
+  {/* إضافة تأثير النبض (الأنيميشن) */}
+  <style>{`
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(100, 180, 255, 0.3); }
+      70% { box-shadow: 0 0 0 10px rgba(100, 180, 255, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(100, 180, 255, 0); }
+    }
+  `}</style>
+</div>
+
 </div>
 
             </div>
