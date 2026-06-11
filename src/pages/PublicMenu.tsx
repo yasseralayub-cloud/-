@@ -145,7 +145,7 @@ export default function PublicMenu() {
               <div style={{ textAlign: 'center', marginTop: '20px', marginBottom: '20px' }}>
   <div style={{ textAlign: 'center', marginTop: '25px', marginBottom: '25px' }}>
   <a
-    href="https://luxcod.online"
+    href="https://luxcod-1024305356158.europe-west2.run.app"
     target="_blank"
     rel="noopener noreferrer"
     style={{
