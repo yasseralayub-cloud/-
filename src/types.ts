@@ -16,4 +16,5 @@ export interface Category {
   label: string;
   labelAr: string;
   icon: string;
+  order?: number;
 }

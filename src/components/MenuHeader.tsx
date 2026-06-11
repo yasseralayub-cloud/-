@@ -1,5 +1,6 @@
 import { motion } from 'motion/react';
 import { Phone, MessageCircle, Languages, MapPin } from 'lucide-react';
+// @ts-ignore
 import logo from '../assets/images/regenerated_image_1778880416572.jpg';
 
 interface MenuHeaderProps {
