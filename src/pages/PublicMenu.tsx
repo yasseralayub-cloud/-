@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Phone, MapPin } from 'lucide-react';
+import { Phone, MapPin, Search, X } from 'lucide-react';
 import MenuHeader from '../components/MenuHeader';
 import CategoryFilter from '../components/CategoryFilter';
 import MenuCard from '../components/MenuCard';
@@ -16,6 +16,7 @@ export default function PublicMenu() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     // Fetch categories
@@ -57,11 +58,25 @@ export default function PublicMenu() {
     return menuItems.length > 0 ? menuItems : mockMenuItems;
   }, [menuItems]);
 
+  const filteredMenuItems = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return activeMenuItems;
+    }
+    const queryStr = searchQuery.toLowerCase().trim();
+    return activeMenuItems.filter(item => {
+      const nameMatch = (item.name || '').toLowerCase().includes(queryStr);
+      const nameArMatch = (item.nameAr || '').toLowerCase().includes(queryStr);
+      const descMatch = (item.description || '').toLowerCase().includes(queryStr);
+      const descArMatch = (item.descriptionAr || '').toLowerCase().includes(queryStr);
+      return nameMatch || nameArMatch || descMatch || descArMatch;
+    });
+  }, [activeMenuItems, searchQuery]);
+
   const groupedItems = useMemo(() => {
     const groups: Record<string, MenuItem[]> = {};
     
     // Group all items by their category ID
-    activeMenuItems.forEach(item => {
+    filteredMenuItems.forEach(item => {
       if (item && item.category) {
         if (!groups[item.category]) {
           groups[item.category] = [];
@@ -80,7 +95,7 @@ export default function PublicMenu() {
     });
 
     return groups;
-  }, [activeMenuItems]);
+  }, [filteredMenuItems]);
 
   const displayCategories = useMemo(() => {
     // Filter categories to show
@@ -173,6 +188,30 @@ export default function PublicMenu() {
           </h2>
         </div>
 
+        {/* Elegant Search Box */}
+        <div className="max-w-md mx-auto mb-10 relative px-4 sm:px-0">
+          <div className="relative flex items-center bg-white rounded-full border border-black/5 shadow-md shadow-black/5 hover:shadow-lg hover:border-yellow/50 focus-within:border-yellow/50 focus-within:shadow-yellow/5 focus-within:shadow-lg transition-all duration-300">
+            <span className={`absolute ${isArabic ? 'right-5' : 'left-5'} text-neutral-400`}>
+              <Search size={20} strokeWidth={2} />
+            </span>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={isArabic ? 'ابحث عن طبق...' : 'Search for a dish...'}
+              className={`w-full bg-transparent py-4 ${isArabic ? 'pr-12 pl-12 text-right' : 'pl-12 pr-12 text-left'} rounded-full text-sm font-medium text-dark placeholder-neutral-400 focus:outline-none focus:ring-0`}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className={`absolute ${isArabic ? 'left-4' : 'right-4'} text-neutral-400 hover:text-dark transition-colors p-1 hover:bg-neutral-100 rounded-full`}
+              >
+                <X size={16} strokeWidth={2.5} />
+              </button>
+            )}
+          </div>
+        </div>
+
         <CategoryFilter
           selectedCategory={selectedCategory}
           onSelect={setSelectedCategory}
@@ -257,7 +296,33 @@ export default function PublicMenu() {
           </motion.div>
         )}
 
-        {Object.keys(groupedItems).length === 0 && !loading && !error && (
+        {activeMenuItems.length > 0 && filteredMenuItems.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="py-16 text-center max-w-xl mx-auto bg-white border border-black/5 rounded-[2.5rem] p-8 md:p-12 shadow-xl mt-12"
+          >
+            <div className="w-16 h-16 bg-neutral-100 border border-black/5 text-neutral-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <Search size={28} strokeWidth={1.5} />
+            </div>
+            <h3 className="text-2xl font-black text-dark mb-3">
+              {isArabic ? 'لم نجد نتائج مطابقة' : 'No matching results'}
+            </h3>
+            <p className="text-dark/60 text-sm mb-8 leading-relaxed">
+              {isArabic 
+                ? 'لم نعثر على أي طبق يطابق كلمة البحث. جرب البحث بكلمات أخرى أو تصفح الأقسام.' 
+                : 'No dishes match your search keywords. Try searching for something else or browse categories.'}
+            </p>
+            <button 
+              onClick={() => setSearchQuery('')} 
+              className="bg-yellow text-black font-black px-8 py-4 rounded-xl hover:scale-105 transition-transform shadow-lg text-xs uppercase tracking-wider cursor-pointer"
+            >
+              {isArabic ? 'عرض كل الأطباق' : 'View all dishes'}
+            </button>
+          </motion.div>
+        )}
+
+        {activeMenuItems.length === 0 && !loading && !error && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
