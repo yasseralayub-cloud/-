@@ -142,50 +142,6 @@ export default function PublicMenu() {
               >
                 {isArabic ? 'استكشف القائمة' : 'Explore Menu'}
               </button>
-              <div style={{ textAlign: 'center', marginTop: '20px', marginBottom: '20px' }}>
-  <div style={{ textAlign: 'center', marginTop: '25px', marginBottom: '25px' }}>
-  <a
-    href="https://luxcod.online/"
-    target="_blank"
-    rel="noopener noreferrer"
-    style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: '12px',
-      textDecoration: 'none',
-      color: '#fff',
-      padding: '10px 20px',
-      borderRadius: '20px',
-      backgroundColor: 'rgba(255, 255, 255, 0.05)',
-      border: '1px solid rgba(255, 255, 255, 0.2)',
-      boxShadow: '0 0 10px rgba(100, 180, 255, 0.2)', // توهج ناعم جداً
-      animation: 'pulse 3s infinite', // تأثير نبض هادئ
-      transition: 'all 0.3s ease'
-    }}
-  >
-    <img
-      src="/logo.png"
-      alt="Luxcod"
-      style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover' }}
-    />
-    <span style={{ fontSize: '14px', fontWeight: '500' }}>
-      تم الإنشاء بواسطة <span style={{ color: '#FFD700' }}>Luxcod</span>
-    </span>
-  </a>
-
-  {/* إضافة تأثير النبض (الأنيميشن) */}
-  <style>{`
-    @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(100, 180, 255, 0.3); }
-      70% { box-shadow: 0 0 0 10px rgba(100, 180, 255, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(100, 180, 255, 0); }
-    }
-  `}</style>
-</div>
-
-</div>
-
             </div>
           </motion.div>
 
@@ -386,10 +342,6 @@ export default function PublicMenu() {
           </div>
         </div>
       </footer>
-<footer style={{ textAlign: 'center', padding: '30px 10px', marginTop: '50px', borderTop: '1px solid #333', color: '#888', fontSize: '12px' }}>
-  <p>© {new Date().getFullYear()} جميع الحقوق محفوظة لـ Luxcod</p>
-  <p style={{ marginTop: '5px' }}>حلول برمجية مبتكرة للأعمال</p>
-</footer>
 
     </div>
   );
