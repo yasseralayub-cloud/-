@@ -55,6 +55,7 @@ export default function AdminDashboard() {
   }, []);
 
   const handleLogout = async () => {
+    sessionStorage.removeItem('admin_authenticated');
     await auth.signOut();
     navigate('/login');
   };

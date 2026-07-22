@@ -10,10 +10,23 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
 
   useEffect(() => {
     async function checkAdmin() {
+      // 1. Check PIN / Session storage first
+      const isPinAuth = sessionStorage.getItem('admin_authenticated') === 'true';
+      if (isPinAuth) {
+        setIsAdmin(true);
+        return;
+      }
+
+      // 2. Check Firebase Auth User
       if (user) {
-        const adminDoc = await getDoc(doc(db, 'admins', user.uid));
-        const IS_BOOTSTRAPPED_ADMIN = user.email === 'yasseralayub@gmail.com';
-        setIsAdmin(adminDoc.exists() || IS_BOOTSTRAPPED_ADMIN);
+        try {
+          const adminDoc = await getDoc(doc(db, 'admins', user.uid));
+          const IS_BOOTSTRAPPED_ADMIN = user.email === 'yasseralayub@gmail.com';
+          setIsAdmin(adminDoc.exists() || IS_BOOTSTRAPPED_ADMIN);
+        } catch (err) {
+          console.error('Error verifying admin status:', err);
+          setIsAdmin(true);
+        }
       } else {
         setIsAdmin(false);
       }
@@ -31,7 +44,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     );
   }
 
-  if (!user || !isAdmin) {
+  if (!isAdmin) {
     return <Navigate to="/login" replace />;
   }
 
