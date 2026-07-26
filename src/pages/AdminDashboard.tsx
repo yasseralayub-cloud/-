@@ -48,6 +48,25 @@ export default function AdminDashboard() {
     alert('تم استيراد البيانات بنجاح!');
   };
 
+  // Utility to strip undefined and NaN values before saving to Firestore
+  const cleanForFirestore = <T extends Record<string, any>>(obj: T): T => {
+    const cleaned: Record<string, any> = {};
+    for (const [key, val] of Object.entries(obj)) {
+      if (val === undefined) continue;
+      if (typeof val === 'number' && isNaN(val)) continue;
+      if (val !== null && typeof val === 'object' && !Array.isArray(val) && !(val instanceof Date)) {
+        cleaned[key] = cleanForFirestore(val);
+      } else if (Array.isArray(val)) {
+        cleaned[key] = val
+          .filter(item => item !== undefined)
+          .map(item => (item && typeof item === 'object') ? cleanForFirestore(item) : (typeof item === 'number' && isNaN(item) ? null : item));
+      } else {
+        cleaned[key] = val;
+      }
+    }
+    return cleaned as T;
+  };
+
   useEffect(() => {
     const catsUnsub = onSnapshot(collection(db, 'categories'), (snapshot) => {
       const cats = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Category));
@@ -84,11 +103,12 @@ export default function AdminDashboard() {
     if (e) e.preventDefault();
     setIsSavingSettings(true);
     try {
-      await setDoc(doc(db, 'settings', 'site'), siteSettings);
+      const cleaned = cleanForFirestore(siteSettings);
+      await setDoc(doc(db, 'settings', 'site'), cleaned);
       alert(isArabic ? 'تم حفظ إعدادات الضريبة وصور الشهادات بنجاح!' : 'Tax and certification settings saved successfully!');
     } catch (err: any) {
       console.error("Save settings error:", err);
-      alert(isArabic ? 'حدث خطأ أثناء حفظ الإعدادات' : 'Error saving settings');
+      alert(isArabic ? `حدث خطأ أثناء حفظ الإعدادات: ${err?.message || ''}` : `Error saving settings: ${err?.message || ''}`);
     } finally {
       setIsSavingSettings(false);
     }
@@ -258,9 +278,10 @@ export default function AdminDashboard() {
     if (!editingItem) return;
 
     try {
-      const parsedPrice = typeof editingItem.price === 'number' ? editingItem.price : parseFloat(String(editingItem.price || 0));
-      const itemData: MenuItem = {
-        ...editingItem,
+      const rawPrice = editingItem.price;
+      const parsedPrice = typeof rawPrice === 'number' ? rawPrice : parseFloat(String(rawPrice || 0));
+      
+      const itemData: Record<string, any> = {
         id: editingItem.id || `item_${Date.now()}`,
         name: editingItem.name || '',
         nameAr: editingItem.nameAr || '',
@@ -274,7 +295,15 @@ export default function AdminDashboard() {
         includesVat: editingItem.includesVat !== undefined ? editingItem.includesVat : siteSettings.vatIncludedInPrices,
       };
 
-      await setDoc(doc(db, 'menuItems', itemData.id), itemData);
+      if (editingItem.calories !== undefined && editingItem.calories !== null) {
+        const cal = typeof editingItem.calories === 'number' ? editingItem.calories : parseInt(String(editingItem.calories));
+        if (!isNaN(cal)) {
+          itemData.calories = cal;
+        }
+      }
+
+      const cleanData = cleanForFirestore(itemData);
+      await setDoc(doc(db, 'menuItems', cleanData.id), cleanData);
       setIsModalOpen(false);
       setEditingItem(null);
     } catch (error: any) {
@@ -407,11 +436,12 @@ export default function AdminDashboard() {
     }
 
     try {
-      await setDoc(doc(db, 'categories', catId), catData);
+      const cleanCat = cleanForFirestore(catData);
+      await setDoc(doc(db, 'categories', catId), cleanCat);
       setEditingCategory(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Save category failed:', error);
-      alert(isArabic ? 'فشل حفظ القسم' : 'Failed to save category');
+      alert(isArabic ? `فشل حفظ القسم: ${error?.message || ''}` : `Failed to save category: ${error?.message || ''}`);
     }
   };
 
@@ -1022,8 +1052,9 @@ export default function AdminDashboard() {
                       <input 
                         type="number" 
                         required
-                        value={editingItem?.price || ''}
-                        onChange={e => setEditingItem(prev => ({ ...prev!, price: parseFloat(e.target.value) }))}
+                        step="any"
+                        value={editingItem?.price ?? ''}
+                        onChange={e => setEditingItem(prev => ({ ...prev!, price: e.target.value === '' ? 0 : parseFloat(e.target.value) }))}
                         className="w-full bg-neutral-100 border-none rounded-2xl px-5 py-4 focus:ring-2 focus:ring-yellow font-bold text-dark pr-12"
                       />
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-dark/30 font-bold">ر.س</span>
@@ -1033,7 +1064,7 @@ export default function AdminDashboard() {
                   <label className="block">
                     <span className="text-xs font-black uppercase text-dark/40 tracking-widest block mb-2">التصنيف</span>
                     <select 
-                      value={editingItem?.category || ''}
+                      value={editingItem?.category || categories[0]?.id || 'grills'}
                       onChange={e => setEditingItem(prev => ({ ...prev!, category: e.target.value }))}
                       className="w-full bg-neutral-100 border-none rounded-2xl px-5 py-4 focus:ring-2 focus:ring-yellow font-bold text-dark appearance-none"
                     >
@@ -1047,8 +1078,8 @@ export default function AdminDashboard() {
                     <span className="text-xs font-black uppercase text-dark/40 tracking-widest block mb-2">السعرات (اختياري)</span>
                     <input 
                       type="number" 
-                      value={editingItem?.calories || ''}
-                      onChange={e => setEditingItem(prev => ({ ...prev!, calories: parseInt(e.target.value) }))}
+                      value={editingItem?.calories ?? ''}
+                      onChange={e => setEditingItem(prev => ({ ...prev!, calories: e.target.value === '' ? undefined : parseInt(e.target.value) }))}
                       className="w-full bg-neutral-100 border-none rounded-2xl px-5 py-4 focus:ring-2 focus:ring-yellow font-bold text-dark"
                     />
                   </label>
