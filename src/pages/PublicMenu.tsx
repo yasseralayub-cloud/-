@@ -1,19 +1,21 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Phone, MapPin, Search, X } from 'lucide-react';
+import { Phone, MapPin, Search, X, Receipt } from 'lucide-react';
 import MenuHeader from '../components/MenuHeader';
 import CategoryFilter from '../components/CategoryFilter';
 import MenuCard from '../components/MenuCard';
-import { MenuItem, Category } from '../types';
+import { MenuItem, Category, SiteSettings } from '../types';
 import { db } from '../lib/firebase';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, doc, onSnapshot } from 'firebase/firestore';
 import { categories as mockCategories, menuItems as mockMenuItems } from '../data/mockMenu';
+import { defaultSiteSettings } from '../data/defaultSettings';
 
 export default function PublicMenu() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [isArabic, setIsArabic] = useState(true);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [settings, setSettings] = useState<SiteSettings>(defaultSiteSettings);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -27,7 +29,6 @@ export default function PublicMenu() {
       setCategories([...validCats].sort((a, b) => (a.order || 0) - (b.order || 0)));
     }, (err) => {
       console.error("Firestore loading categories error: ", err);
-      // Fail silently or set categories empty so mock data can handle it
       setLoading(false);
     });
 
@@ -43,9 +44,28 @@ export default function PublicMenu() {
       setLoading(false);
     });
 
+    // Fetch site settings (VAT & verification badges)
+    const settingsUnsub = onSnapshot(doc(db, 'settings', 'site'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data() as SiteSettings;
+        setSettings({
+          ...defaultSiteSettings,
+          ...data,
+          verificationBadges: data.verificationBadges && data.verificationBadges.length > 0 
+            ? data.verificationBadges 
+            : defaultSiteSettings.verificationBadges
+        });
+      } else {
+        setSettings(defaultSiteSettings);
+      }
+    }, (err) => {
+      console.error("Settings load error:", err);
+    });
+
     return () => {
       categoriesUnsub();
       itemsUnsub();
+      settingsUnsub();
     };
   }, []);
 
@@ -179,7 +199,7 @@ export default function PublicMenu() {
       </section>
 
       <main id="menu-start" className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-12">
+        <div className="text-center mb-8">
           <h2 className="text-dark/20 text-5xl md:text-8xl font-black uppercase tracking-tighter opacity-10 absolute left-1/2 -translate-x-1/2 -translate-y-12 select-none pointer-events-none">
             {isArabic ? 'قائمة الطعام' : 'The Menu'}
           </h2>
@@ -187,6 +207,25 @@ export default function PublicMenu() {
             {isArabic ? 'قائمة الطعام' : 'The Menu'}
           </h2>
         </div>
+
+        {/* VAT Notice Banner */}
+        {settings.vatEnabled && (
+          <div className="flex justify-center mb-8">
+            <div className="inline-flex items-center gap-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 px-5 py-2.5 rounded-full text-xs font-bold shadow-xs">
+              <Receipt size={16} className="text-emerald-600" />
+              <span>
+                {isArabic 
+                  ? `جميع الأسعار شاملة ضريبة القيمة المضافة (${settings.vatRate || 15}%)` 
+                  : `All prices include ${settings.vatRate || 15}% VAT`}
+              </span>
+              {settings.vatNumber && (
+                <span className="hidden sm:inline border-r border-emerald-500/30 pr-2 mr-1">
+                  {isArabic ? 'رقم الضريبة:' : 'VAT:'} {settings.vatNumber}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Elegant Search Box */}
         <div className="max-w-md mx-auto mb-10 relative px-4 sm:px-0">
@@ -257,7 +296,7 @@ export default function PublicMenu() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: itemIndex * 0.05 }}
                       >
-                        <MenuCard item={item} isArabic={isArabic} />
+                        <MenuCard item={item} isArabic={isArabic} vatEnabled={settings.vatEnabled} />
                       </motion.div>
                     ))}
                   </div>
@@ -385,8 +424,8 @@ export default function PublicMenu() {
       </section>
 
       {/* Footer social icons and info */}
-      <footer className="mt-32 py-16 border-t border-black/5 bg-black text-center text-white">
-        <div className="max-w-md mx-auto px-6">
+      <footer className="mt-24 py-16 border-t border-black/5 bg-black text-center text-white">
+        <div className="max-w-xl mx-auto px-6">
           <h2 className="font-sans text-3xl mb-4 font-black text-yellow uppercase">رحلة شواء</h2>
           <p className="text-white/60 text-sm mb-6 leading-relaxed">
             {isArabic 
@@ -400,6 +439,17 @@ export default function PublicMenu() {
               {isArabic ? 'اتصل بنا للحجز والطلبات' : 'Call us for reservations & orders'}
             </p>
           </div>
+
+          {(settings.vatNumber || settings.crNumber) && (
+            <div className="mb-8 pt-6 border-t border-white/10 flex flex-wrap justify-center gap-4 text-xs text-white/50">
+              {settings.vatNumber && (
+                <span>{isArabic ? 'الرقم الضريبي:' : 'VAT Registration:'} <strong className="text-yellow">{settings.vatNumber}</strong></span>
+              )}
+              {settings.crNumber && (
+                <span>{isArabic ? 'السجل التجاري:' : 'CR Number:'} <strong className="text-yellow">{settings.crNumber}</strong></span>
+              )}
+            </div>
+          )}
 
           <div className="flex justify-center gap-6 text-yellow font-bold text-xs tracking-widest uppercase">
             <a href="https://wa.me/966502163363" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">WhatsApp</a>

@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { db, auth, storage } from '../lib/firebase';
 import { collection, onSnapshot, updateDoc, deleteDoc, doc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { MenuItem, Category } from '../types';
-import { Plus, Edit, Trash2, LogOut, Image, Save, X, Flame, Upload, Loader2, ChevronUp, ChevronDown, ListOrdered } from 'lucide-react';
+import { MenuItem, Category, SiteSettings, VerificationBadge } from '../types';
+import { defaultSiteSettings } from '../data/defaultSettings';
+import { Plus, Edit, Trash2, LogOut, Image, Save, X, Flame, Upload, Loader2, ChevronUp, ChevronDown, ListOrdered, ShieldCheck, Receipt, Utensils, RotateCcw } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
@@ -11,8 +12,17 @@ import { useNavigate } from 'react-router-dom';
 import { migrateData } from '../lib/migrate';
 
 export default function AdminDashboard() {
+  const [activeTab, setActiveTab] = useState<'items' | 'settings'>('items');
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>(defaultSiteSettings);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  
+  // Badge management modal state
+  const [editingBadge, setEditingBadge] = useState<Partial<VerificationBadge> | null>(null);
+  const [isBadgeModalOpen, setIsBadgeModalOpen] = useState(false);
+  const [badgeUploadProgress, setBadgeUploadProgress] = useState<number | null>(null);
+
   const [editingItem, setEditingItem] = useState<Partial<MenuItem> | null>(null);
   const [editingCategory, setEditingCategory] = useState<Partial<Category> | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -48,11 +58,117 @@ export default function AdminDashboard() {
       setMenuItems(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as MenuItem)));
     });
 
+    const settingsUnsub = onSnapshot(doc(db, 'settings', 'site'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data() as SiteSettings;
+        setSiteSettings({
+          ...defaultSiteSettings,
+          ...data,
+          verificationBadges: data.verificationBadges && data.verificationBadges.length > 0 
+            ? data.verificationBadges 
+            : defaultSiteSettings.verificationBadges
+        });
+      } else {
+        setSiteSettings(defaultSiteSettings);
+      }
+    });
+
     return () => {
       catsUnsub();
       itemsUnsub();
+      settingsUnsub();
     };
   }, []);
+
+  const handleSaveSettings = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setIsSavingSettings(true);
+    try {
+      await setDoc(doc(db, 'settings', 'site'), siteSettings);
+      alert(isArabic ? 'تم حفظ إعدادات الضريبة وصور الشهادات بنجاح!' : 'Tax and certification settings saved successfully!');
+    } catch (err: any) {
+      console.error("Save settings error:", err);
+      alert(isArabic ? 'حدث خطأ أثناء حفظ الإعدادات' : 'Error saving settings');
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
+  const handleBadgeImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert(isArabic ? 'حجم الصورة كبير جداً (الحد الأقصى 5 ميجابايت)' : 'File too large (Max 5MB)');
+      return;
+    }
+
+    const storageRef = ref(storage, `certificates/${Date.now()}_${file.name}`);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    uploadTask.on('state_changed',
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        setBadgeUploadProgress(progress);
+      },
+      (error) => {
+        console.error("Badge upload error:", error);
+        alert(isArabic ? 'فشل رفع صورة الشهادة' : 'Upload failed');
+        setBadgeUploadProgress(null);
+      },
+      async () => {
+        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+        setEditingBadge(prev => ({ ...prev!, imageUrl: downloadURL }));
+        setBadgeUploadProgress(null);
+      }
+    );
+  };
+
+  const handleSaveBadge = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingBadge || !editingBadge.imageUrl) {
+      alert(isArabic ? 'يرجى اختيار أو رفع صورة الشهادة' : 'Please provide a certificate image');
+      return;
+    }
+
+    const badgeId = editingBadge.id || `badge_${Date.now()}`;
+    const newBadge: VerificationBadge = {
+      id: badgeId,
+      title: editingBadge.title || 'شهادة توثيق',
+      titleAr: editingBadge.titleAr || editingBadge.title || 'شهادة توثيق',
+      subtitle: editingBadge.subtitle || '',
+      subtitleAr: editingBadge.subtitleAr || editingBadge.subtitle || '',
+      imageUrl: editingBadge.imageUrl,
+    };
+
+    const existingIndex = siteSettings.verificationBadges.findIndex(b => b.id === badgeId);
+    let updatedBadges = [...siteSettings.verificationBadges];
+    if (existingIndex >= 0) {
+      updatedBadges[existingIndex] = newBadge;
+    } else {
+      updatedBadges.push(newBadge);
+    }
+
+    setSiteSettings(prev => ({ ...prev, verificationBadges: updatedBadges }));
+    setEditingBadge(null);
+    setIsBadgeModalOpen(false);
+  };
+
+  const handleDeleteBadge = (id: string) => {
+    if (!window.confirm(isArabic ? 'هل أنت متأكد من حذف هذه الشهادة؟' : 'Delete this certificate?')) return;
+    setSiteSettings(prev => ({
+      ...prev,
+      verificationBadges: prev.verificationBadges.filter(b => b.id !== id)
+    }));
+  };
+
+  const handleResetBadgesToDefault = () => {
+    if (!window.confirm(isArabic ? 'هل تريد استعادة الشهادات الرسمية الافتراضية؟' : 'Reset to default official certificates?')) return;
+    setSiteSettings(prev => ({
+      ...prev,
+      verificationBadges: defaultSiteSettings.verificationBadges
+    }));
+  };
 
   const handleLogout = async () => {
     sessionStorage.removeItem('admin_authenticated');
@@ -298,32 +414,61 @@ export default function AdminDashboard() {
         </div>
       </header>
 
+      {/* Navigation Tabs */}
+      <div className="bg-black/95 border-b border-white/10 px-8 py-3 sticky top-0 z-20 flex gap-3 text-sm font-bold text-white shadow-md">
+        <button
+          onClick={() => setActiveTab('items')}
+          className={`px-6 py-2.5 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
+            activeTab === 'items' 
+              ? 'bg-yellow text-black font-black shadow-lg' 
+              : 'text-white/60 hover:text-white hover:bg-white/10'
+          }`}
+        >
+          <Utensils size={18} />
+          <span>{isArabic ? 'إدارة الأصناف والأقسام' : 'Items & Categories'}</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('settings')}
+          className={`px-6 py-2.5 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
+            activeTab === 'settings' 
+              ? 'bg-yellow text-black font-black shadow-lg' 
+              : 'text-white/60 hover:text-white hover:bg-white/10'
+          }`}
+        >
+          <ShieldCheck size={18} />
+          <span>{isArabic ? 'إعدادات الضريبة والتوثيق' : 'VAT & Badges Settings'}</span>
+        </button>
+      </div>
+
       <main className="max-w-7xl mx-auto p-8">
-        <div className="flex justify-between items-center mb-10">
-          <div>
-            <h2 className="text-3xl font-black text-dark mb-2">الأصناف الحالية</h2>
-            <p className="text-dark/40">يمكنك تعديل الأسعار، المكونات، وضافة أصناف جديدة</p>
-          </div>
-          <div className="flex gap-4">
-            <button 
-              onClick={() => setIsCategoryReorderModalOpen(true)}
-              className="bg-white text-dark border border-black/5 font-black px-8 py-4 rounded-2xl flex items-center gap-3 hover:bg-neutral-100 transition-all shadow-xl"
-            >
-              <ListOrdered size={24} />
-              <span>إدارة وترتيب الأقسام</span>
-            </button>
-            <button 
-              onClick={() => {
-                setEditingItem({ category: categories[0]?.id, isPopular: false });
-                setIsModalOpen(true);
-              }}
-              className="bg-black text-yellow font-black px-8 py-4 rounded-2xl flex items-center gap-3 hover:scale-105 transition-transform shadow-2xl"
-            >
-              <Plus size={24} />
-              <span>إضافة صنف جديد</span>
-            </button>
-          </div>
-        </div>
+        {activeTab === 'items' ? (
+          <>
+            <div className="flex justify-between items-center mb-10">
+              <div>
+                <h2 className="text-3xl font-black text-dark mb-2">الأصناف الحالية</h2>
+                <p className="text-dark/40">يمكنك تعديل الأسعار، المكونات، وإضافة أصناف جديدة</p>
+              </div>
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => setIsCategoryReorderModalOpen(true)}
+                  className="bg-white text-dark border border-black/5 font-black px-8 py-4 rounded-2xl flex items-center gap-3 hover:bg-neutral-100 transition-all shadow-xl cursor-pointer"
+                >
+                  <ListOrdered size={24} />
+                  <span>إدارة وترتيب الأقسام</span>
+                </button>
+                <button 
+                  onClick={() => {
+                    setEditingItem({ category: categories[0]?.id, isPopular: false, isVatExempt: false });
+                    setIsModalOpen(true);
+                  }}
+                  className="bg-black text-yellow font-black px-8 py-4 rounded-2xl flex items-center gap-3 hover:scale-105 transition-transform shadow-2xl cursor-pointer"
+                >
+                  <Plus size={24} />
+                  <span>إضافة صنف جديد</span>
+                </button>
+              </div>
+            </div>
 
         {/* Filter & Sort Controls */}
         <div className="bg-white border border-black/5 rounded-[2rem] p-6 mb-10 flex flex-col md:flex-row gap-6 items-center shadow-sm">
@@ -418,8 +563,21 @@ export default function AdminDashboard() {
                     <h3 className="font-sans text-xl font-black text-dark mb-1 leading-tight">{item.nameAr}</h3>
                     <p className="text-xs text-dark/40 font-medium uppercase tracking-wider">{item.name}</p>
                   </div>
-                  <div className="bg-black text-yellow font-black px-4 py-2 rounded-xl text-lg shadow-sm">
-                    {item.price} <span className="text-[10px] opacity-70">ر.س</span>
+                  <div className="flex flex-col items-end gap-1">
+                    <div className="bg-black text-yellow font-black px-4 py-2 rounded-xl text-lg shadow-sm">
+                      {item.price} <span className="text-[10px] opacity-70">ر.س</span>
+                    </div>
+                    {siteSettings.vatEnabled && (
+                      item.isVatExempt ? (
+                        <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-200">
+                          {isArabic ? 'معفى من الضريبة' : 'VAT Exempt'}
+                        </span>
+                      ) : (
+                        <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          {isArabic ? 'خاضع للضريبة' : 'Taxable'}
+                        </span>
+                      )
+                    )}
                   </div>
                 </div>
 
@@ -456,6 +614,190 @@ export default function AdminDashboard() {
           ))}
           </AnimatePresence>
         </div>
+          </>
+        ) : (
+          <div className="space-y-10">
+            {/* Title & Save Bar */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white border border-black/5 rounded-[2rem] p-8 shadow-sm">
+              <div>
+                <h2 className="text-3xl font-black text-dark mb-1">إعدادات الضريبة وصور التوثيق</h2>
+                <p className="text-dark/50 text-sm">تفعيل قيمة الضريبة وإدارة صور الشهادات الرسمية التي تظهر أسفل الموقع بشكل متحرك</p>
+              </div>
+
+              <button
+                onClick={() => handleSaveSettings()}
+                disabled={isSavingSettings}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-8 py-4 rounded-2xl flex items-center gap-3 transition-all shadow-xl cursor-pointer disabled:opacity-50"
+              >
+                {isSavingSettings ? (
+                  <Loader2 size={20} className="animate-spin" />
+                ) : (
+                  <Save size={20} />
+                )}
+                <span>{isArabic ? 'حفظ التغييرات' : 'Save Settings'}</span>
+              </button>
+            </div>
+
+            {/* VAT Settings Card */}
+            <div className="bg-white border border-black/5 rounded-[2.5rem] p-8 shadow-sm">
+              <div className="flex items-center gap-3 mb-6 pb-4 border-b border-black/5">
+                <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 rounded-2xl flex items-center justify-center">
+                  <Receipt size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-dark">إعدادات ضريبة القيمة المضافة (VAT)</h3>
+                  <p className="text-xs text-dark/40">التحكم في تفعيل أو إخفاء نسبة الضريبة المضافة والأرقام الرسمية</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* VAT Toggle */}
+                <div className="bg-neutral-50 p-6 rounded-2xl border border-black/5 flex items-center justify-between">
+                  <div>
+                    <label className="block font-black text-dark text-base mb-1">حالة الضريبة المضافة</label>
+                    <p className="text-xs text-dark/50">تفعيل إظهار إشعار "الأسعار شاملة الضريبة" في المنيو والبطاقات</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSiteSettings(prev => ({ ...prev, vatEnabled: !prev.vatEnabled }))}
+                    className={`w-16 h-9 rounded-full p-1 transition-colors duration-300 flex items-center cursor-pointer ${
+                      siteSettings.vatEnabled ? 'bg-emerald-500 justify-end' : 'bg-neutral-300 justify-start'
+                    }`}
+                  >
+                    <motion.div layout className="w-7 h-7 bg-white rounded-full shadow-md" />
+                  </button>
+                </div>
+
+                {/* VAT Rate */}
+                <div className="bg-neutral-50 p-6 rounded-2xl border border-black/5">
+                  <label className="block font-black text-dark text-xs uppercase tracking-wider mb-2">نسبة الضريبة المضافة (%)</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={siteSettings.vatRate ?? 15}
+                      onChange={(e) => setSiteSettings(prev => ({ ...prev, vatRate: parseFloat(e.target.value) || 0 }))}
+                      placeholder="15"
+                      className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-black text-dark focus:outline-none focus:border-yellow"
+                    />
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-dark/40">%</span>
+                  </div>
+                </div>
+
+                {/* VAT Number */}
+                <div className="bg-neutral-50 p-6 rounded-2xl border border-black/5">
+                  <label className="block font-black text-dark text-xs uppercase tracking-wider mb-2">رقم التسجيل الضريبي (VAT Number)</label>
+                  <input
+                    type="text"
+                    value={siteSettings.vatNumber || ''}
+                    onChange={(e) => setSiteSettings(prev => ({ ...prev, vatNumber: e.target.value }))}
+                    placeholder="مثال: 310245892300003"
+                    className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-mono text-dark focus:outline-none focus:border-yellow"
+                  />
+                  <span className="text-[11px] text-dark/40 mt-1 block">رقم الشهادة الضريبية من هيئة الزكاة والضريبة والجمارك (15 رقم)</span>
+                </div>
+
+                {/* CR Number */}
+                <div className="bg-neutral-50 p-6 rounded-2xl border border-black/5">
+                  <label className="block font-black text-dark text-xs uppercase tracking-wider mb-2">رقم السجل التجاري (CR Number)</label>
+                  <input
+                    type="text"
+                    value={siteSettings.crNumber || ''}
+                    onChange={(e) => setSiteSettings(prev => ({ ...prev, crNumber: e.target.value }))}
+                    placeholder="مثال: 1010892341"
+                    className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-mono text-dark focus:outline-none focus:border-yellow"
+                  />
+                  <span className="text-[11px] text-dark/40 mt-1 block">رقم السجل التجاري الصادر للمطعم من وزارة التجارة</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Verification Badges Manager */}
+            <div className="bg-white border border-black/5 rounded-[2.5rem] p-8 shadow-sm">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-black/5">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-yellow/10 text-yellow-700 rounded-2xl flex items-center justify-center">
+                    <ShieldCheck size={26} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-dark">صور شهادات التوثيق والاعتماد (Carousel)</h3>
+                    <p className="text-xs text-dark/40">تظهر هذه الصور بشكل متحرك ومتعاقب (صورة واحدة متفاعلة) في أسفل الموقع</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleResetBadgesToDefault}
+                    className="bg-neutral-100 hover:bg-neutral-200 text-dark font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 transition-all cursor-pointer"
+                  >
+                    <RotateCcw size={14} />
+                    <span>استعادة الافتراضية</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingBadge({ titleAr: '', subtitleAr: '', imageUrl: '' });
+                      setIsBadgeModalOpen(true);
+                    }}
+                    className="bg-black text-yellow font-black px-6 py-2.5 rounded-xl text-xs flex items-center gap-2 hover:scale-105 transition-transform shadow-lg cursor-pointer"
+                  >
+                    <Plus size={16} />
+                    <span>إضافة شهادة جديدة</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Badges Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {siteSettings.verificationBadges.map((badge, idx) => (
+                  <div 
+                    key={badge.id || idx}
+                    className="bg-neutral-50 rounded-2xl border border-black/5 p-5 flex flex-col justify-between relative shadow-2xs hover:shadow-md transition-all"
+                  >
+                    <div className="relative aspect-[16/10] bg-white rounded-xl overflow-hidden mb-3 border border-black/5 flex items-center justify-center p-2">
+                      <img
+                        src={badge.imageUrl}
+                        alt={badge.titleAr}
+                        className="w-full h-full object-contain"
+                      />
+                      <span className="absolute top-2 right-2 bg-black/80 text-yellow text-[10px] font-black px-2 py-0.5 rounded-md">
+                        #{idx + 1}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h4 className="font-black text-dark text-sm mb-1">{badge.titleAr || badge.title}</h4>
+                      <p className="text-xs text-dark/50 line-clamp-1">{badge.subtitleAr || badge.subtitle}</p>
+                    </div>
+
+                    <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-black/5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingBadge(badge);
+                          setIsBadgeModalOpen(true);
+                        }}
+                        className="w-9 h-9 bg-white hover:bg-black hover:text-yellow text-dark rounded-xl flex items-center justify-center transition-all border border-black/5 cursor-pointer"
+                        title="تعديل"
+                      >
+                        <Edit size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteBadge(badge.id)}
+                        className="w-9 h-9 bg-red-50 hover:bg-red-500 hover:text-white text-red-500 rounded-xl flex items-center justify-center transition-all border border-red-100 cursor-pointer"
+                        title="حذف"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Item Modal */}
@@ -658,19 +1000,44 @@ export default function AdminDashboard() {
                     )}
                   </div>
 
-                  <label className="flex items-center gap-3 cursor-pointer group">
-                    <div className="relative">
-                      <input 
-                        type="checkbox" 
-                        checked={editingItem?.isPopular || false}
-                        onChange={e => setEditingItem(prev => ({ ...prev!, isPopular: e.target.checked }))}
-                        className="sr-only"
-                      />
-                      <div className={`w-12 h-6 rounded-full transition-colors ${editingItem?.isPopular ? 'bg-yellow' : 'bg-neutral-200'}`} />
-                      <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${editingItem?.isPopular ? 'translate-x-6' : ''}`} />
-                    </div>
-                    <span className="font-bold text-dark">تمييز كـ "شائع" (Popular)</span>
-                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                    {/* Popular Toggle */}
+                    <label className="flex items-center gap-3 cursor-pointer group bg-neutral-100 p-4 rounded-2xl border border-black/5 hover:bg-neutral-200/60 transition-colors">
+                      <div className="relative flex-shrink-0">
+                        <input 
+                          type="checkbox" 
+                          checked={editingItem?.isPopular || false}
+                          onChange={e => setEditingItem(prev => ({ ...prev!, isPopular: e.target.checked }))}
+                          className="sr-only"
+                        />
+                        <div className={`w-11 h-6 rounded-full transition-colors ${editingItem?.isPopular ? 'bg-yellow' : 'bg-neutral-300'}`} />
+                        <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${editingItem?.isPopular ? 'translate-x-5' : ''}`} />
+                      </div>
+                      <span className="font-bold text-xs text-dark">{isArabic ? 'تمييز كـ "شائع" (Popular)' : 'Mark as Popular'}</span>
+                    </label>
+
+                    {/* VAT Subject Toggle */}
+                    <label className="flex items-center gap-3 cursor-pointer group bg-neutral-100 p-4 rounded-2xl border border-black/5 hover:bg-neutral-200/60 transition-colors">
+                      <div className="relative flex-shrink-0">
+                        <input 
+                          type="checkbox" 
+                          checked={!editingItem?.isVatExempt}
+                          onChange={e => setEditingItem(prev => ({ ...prev!, isVatExempt: !e.target.checked }))}
+                          className="sr-only"
+                        />
+                        <div className={`w-11 h-6 rounded-full transition-colors ${!editingItem?.isVatExempt ? 'bg-emerald-500' : 'bg-neutral-300'}`} />
+                        <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${!editingItem?.isVatExempt ? 'translate-x-5' : ''}`} />
+                      </div>
+                      <div>
+                        <span className="font-bold text-xs text-dark block">{isArabic ? 'خاضع لضريبة القيمة المضافة' : 'Subject to VAT'}</span>
+                        <span className="text-[10px] text-dark/50 block font-medium">
+                          {editingItem?.isVatExempt 
+                            ? (isArabic ? 'منتج معفى من الضريبة' : 'VAT Exempt item') 
+                            : (isArabic ? 'تطبق الضريبة على هذا المنتج' : 'VAT applies to this product')}
+                        </span>
+                      </div>
+                    </label>
+                  </div>
                 </div>
 
                 <div className="pt-6 flex gap-4">
@@ -922,6 +1289,118 @@ export default function AdminDashboard() {
                   </div>
                 )}
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Verification Badge Edit/Add Modal */}
+      <AnimatePresence>
+        {isBadgeModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsBadgeModalOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative bg-white rounded-[2.5rem] p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl z-10 text-dark"
+            >
+              <button 
+                onClick={() => setIsBadgeModalOpen(false)}
+                className="absolute top-6 left-6 text-dark/40 hover:text-dark p-2 rounded-full hover:bg-neutral-100 transition-all cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+
+              <h3 className="text-2xl font-black mb-6">
+                {editingBadge?.id ? 'تعديل شهادة التوثيق' : 'إضافة شهادة توثيق جديدة'}
+              </h3>
+
+              <form onSubmit={handleSaveBadge} className="space-y-5">
+                <div>
+                  <label className="block text-xs font-black uppercase text-dark/50 mb-1">اسم الشهادة / الوثيقة (بالعربي)</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={editingBadge?.titleAr || ''}
+                    onChange={(e) => setEditingBadge(prev => ({ ...prev, titleAr: e.target.value, title: e.target.value }))}
+                    placeholder="مثال: شهادة التسجيل الضريبي"
+                    className="w-full bg-neutral-50 border border-black/10 rounded-xl px-4 py-3 font-bold text-dark focus:outline-none focus:border-yellow"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase text-dark/50 mb-1">الجهة المصدرة / الوصف الفرعي</label>
+                  <input 
+                    type="text" 
+                    value={editingBadge?.subtitleAr || ''}
+                    onChange={(e) => setEditingBadge(prev => ({ ...prev, subtitleAr: e.target.value, subtitle: e.target.value }))}
+                    placeholder="مثال: هيئة الزكاة والضريبة والجمارك"
+                    className="w-full bg-neutral-50 border border-black/10 rounded-xl px-4 py-3 font-medium text-dark focus:outline-none focus:border-yellow"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase text-dark/50 mb-2">صورة الشهادة</label>
+                  
+                  {/* Image Upload Box */}
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-black/10 hover:border-yellow rounded-2xl cursor-pointer bg-neutral-50 hover:bg-yellow/5 transition-all mb-3">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <Upload size={28} className="text-dark/40 mb-2" />
+                      <p className="text-xs font-bold text-dark/70">اضغط لرفع صورة من جهازك</p>
+                      <p className="text-[10px] text-dark/40 mt-1">PNG, JPG, SVG حتى 5 ميجابايت</p>
+                    </div>
+                    <input type="file" accept="image/*" onChange={handleBadgeImageUpload} className="hidden" />
+                  </label>
+
+                  {badgeUploadProgress !== null && (
+                    <div className="w-full bg-neutral-200 rounded-full h-2 mb-3 overflow-hidden">
+                      <div className="bg-yellow h-2 transition-all" style={{ width: `${badgeUploadProgress}%` }} />
+                    </div>
+                  )}
+
+                  {/* Direct Image URL input */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-dark/40 mb-1">أو أدخل رابط الصورة مباشرة (Image URL):</label>
+                    <input
+                      type="text"
+                      value={editingBadge?.imageUrl || ''}
+                      onChange={(e) => setEditingBadge(prev => ({ ...prev, imageUrl: e.target.value }))}
+                      placeholder="https://..."
+                      className="w-full bg-neutral-50 border border-black/10 rounded-xl px-4 py-2.5 text-xs font-mono text-dark focus:outline-none focus:border-yellow"
+                    />
+                  </div>
+
+                  {/* Preview */}
+                  {editingBadge?.imageUrl && (
+                    <div className="mt-3 bg-neutral-100 p-2 rounded-xl border border-black/5 h-32 flex items-center justify-center overflow-hidden">
+                      <img src={editingBadge.imageUrl} alt="Preview" className="max-h-full object-contain" />
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-4 flex gap-3">
+                  <button 
+                    type="submit"
+                    className="flex-1 bg-black text-yellow font-black py-4 rounded-xl hover:scale-102 transition-transform shadow-lg cursor-pointer"
+                  >
+                    حفظ الشهادة
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setIsBadgeModalOpen(false)}
+                    className="bg-neutral-100 text-dark font-bold px-6 py-4 rounded-xl hover:bg-neutral-200 transition-all cursor-pointer"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}

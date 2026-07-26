@@ -6,9 +6,10 @@ import { SarSymbol } from './SarSymbol';
 interface MenuCardProps {
   item: MenuItem;
   isArabic: boolean;
+  vatEnabled?: boolean;
 }
 
-export default function MenuCard({ item, isArabic }: MenuCardProps) {
+export default function MenuCard({ item, isArabic, vatEnabled = true }: MenuCardProps) {
   return (
     <motion.div
       layout
@@ -64,6 +65,17 @@ export default function MenuCard({ item, isArabic }: MenuCardProps) {
                 ر.س
               </span>
             </div>
+            {vatEnabled && (
+              item.isVatExempt ? (
+                <span className="text-[9px] text-amber-700 bg-amber-50 font-bold mt-1 tracking-tighter px-2 py-0.5 rounded-full border border-amber-200/60">
+                  {isArabic ? 'معفى من الضريبة' : 'VAT Exempt'}
+                </span>
+              ) : (
+                <span className="text-[9px] text-dark/40 font-bold mt-1 tracking-tighter">
+                  {isArabic ? 'شامل الضريبة' : 'VAT Incl.'}
+                </span>
+              )
+            )}
           </div>
         </div>
         
