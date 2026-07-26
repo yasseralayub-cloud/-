@@ -5,6 +5,7 @@ import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { MenuItem, Category, SiteSettings, VerificationBadge } from '../types';
 import { defaultSiteSettings } from '../data/defaultSettings';
 import { resolveVerificationBadges } from '../lib/badgeUtils';
+import { convertPdfToJpeg } from '../lib/pdfUtils';
 import { Plus, Edit, Trash2, LogOut, Image, Save, X, Flame, Upload, Loader2, ChevronUp, ChevronDown, ListOrdered, ShieldCheck, Receipt, Utensils, RotateCcw } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -156,7 +157,16 @@ export default function AdminDashboard() {
     }
   };
 
-  const processImageFile = (file: File, maxWidth = 800, maxHeight = 800, quality = 0.65): Promise<string> => {
+  const processImageFile = async (file: File, maxWidth = 800, maxHeight = 800, quality = 0.65): Promise<string> => {
+    if (file.type.includes('pdf') || file.name.toLowerCase().endsWith('.pdf')) {
+      try {
+        const jpegUrl = await convertPdfToJpeg(file);
+        return jpegUrl;
+      } catch (pdfErr) {
+        console.error("PDF to JPEG conversion error:", pdfErr);
+      }
+    }
+
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -166,9 +176,9 @@ export default function AdminDashboard() {
           return;
         }
 
-        if (file.type.includes('pdf') || file.name.toLowerCase().endsWith('.pdf') || file.type.includes('svg')) {
+        if (file.type.includes('svg')) {
           if (result.length > 950000) {
-            reject(new Error(isArabic ? 'حجم ملف PDF/SVG كبير جداً (أكثر من 900 كيلوبايت)' : 'PDF/SVG file too large (>900KB)'));
+            reject(new Error(isArabic ? 'حجم ملف SVG كبير جداً (أكثر من 900 كيلوبايت)' : 'SVG file too large (>900KB)'));
             return;
           }
           resolve(result);
@@ -273,7 +283,16 @@ export default function AdminDashboard() {
       return;
     }
 
-    if (editingBadge.imageUrl.length > 950000) {
+    let finalImageUrl = editingBadge.imageUrl;
+    if (finalImageUrl.startsWith('data:application/pdf')) {
+      try {
+        finalImageUrl = await convertPdfToJpeg(finalImageUrl);
+      } catch (err) {
+        console.error("PDF conversion on save failed:", err);
+      }
+    }
+
+    if (finalImageUrl.length > 950000) {
       alert(isArabic ? 'حجم ملف الشهادة كبير جداً (أكثر من 900 كيلوبايت). يرجى تقليل حجم الصورة/الملف أو استخدام رابط مباشر.' : 'Certificate file size is too large (>900KB). Please compress or use a smaller file/URL.');
       return;
     }
@@ -285,7 +304,7 @@ export default function AdminDashboard() {
       titleAr: editingBadge.titleAr || editingBadge.title || 'شهادة توثيق',
       subtitle: editingBadge.subtitle || '',
       subtitleAr: editingBadge.subtitleAr || editingBadge.subtitle || '',
-      imageUrl: editingBadge.imageUrl,
+      imageUrl: finalImageUrl,
     };
 
     try {
