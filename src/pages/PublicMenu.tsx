@@ -5,7 +5,7 @@ import MenuHeader from '../components/MenuHeader';
 import CategoryFilter from '../components/CategoryFilter';
 import MenuCard from '../components/MenuCard';
 import VerificationCarousel from '../components/VerificationCarousel';
-import { MenuItem, Category, SiteSettings } from '../types';
+import { MenuItem, Category, SiteSettings, VerificationBadge } from '../types';
 import { db } from '../lib/firebase';
 import { collection, doc, onSnapshot } from 'firebase/firestore';
 import { categories as mockCategories, menuItems as mockMenuItems } from '../data/mockMenu';
@@ -49,24 +49,41 @@ export default function PublicMenu() {
     const settingsUnsub = onSnapshot(doc(db, 'settings', 'site'), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data() as SiteSettings;
-        setSettings({
+        setSettings(prev => ({
           ...defaultSiteSettings,
           ...data,
-          verificationBadges: data.verificationBadges && data.verificationBadges.length > 0 
-            ? data.verificationBadges 
-            : defaultSiteSettings.verificationBadges
-        });
+          verificationBadges: prev.verificationBadges && prev.verificationBadges.length > 0
+            ? prev.verificationBadges
+            : (data.verificationBadges && data.verificationBadges.length > 0 ? data.verificationBadges : defaultSiteSettings.verificationBadges)
+        }));
       } else {
-        setSettings(defaultSiteSettings);
+        setSettings(prev => ({
+          ...defaultSiteSettings,
+          verificationBadges: prev.verificationBadges && prev.verificationBadges.length > 0 ? prev.verificationBadges : defaultSiteSettings.verificationBadges
+        }));
       }
     }, (err) => {
       console.error("Settings load error:", err);
+    });
+
+    // Fetch certificates collection
+    const certsUnsub = onSnapshot(collection(db, 'certificates'), (snapshot) => {
+      const certs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as VerificationBadge));
+      if (certs.length > 0) {
+        setSettings(prev => ({
+          ...prev,
+          verificationBadges: certs
+        }));
+      }
+    }, (err) => {
+      console.error("Certificates load error:", err);
     });
 
     return () => {
       categoriesUnsub();
       itemsUnsub();
       settingsUnsub();
+      certsUnsub();
     };
   }, []);
 
@@ -213,7 +230,6 @@ export default function PublicMenu() {
         {settings.vatEnabled && (
           <div className="flex justify-center mb-8">
             <div className="inline-flex items-center gap-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 px-5 py-2.5 rounded-full text-xs font-bold shadow-xs">
-              <Receipt size={16} className="text-emerald-600" />
               <span>
                 {isArabic 
                   ? `جميع الأسعار شاملة ضريبة القيمة المضافة (${settings.vatRate || 15}%)` 

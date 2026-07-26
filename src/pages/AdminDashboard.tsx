@@ -80,15 +80,28 @@ export default function AdminDashboard() {
     const settingsUnsub = onSnapshot(doc(db, 'settings', 'site'), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data() as SiteSettings;
-        setSiteSettings({
+        setSiteSettings(prev => ({
           ...defaultSiteSettings,
           ...data,
-          verificationBadges: data.verificationBadges && data.verificationBadges.length > 0 
-            ? data.verificationBadges 
-            : defaultSiteSettings.verificationBadges
-        });
+          verificationBadges: prev.verificationBadges && prev.verificationBadges.length > 0 
+            ? prev.verificationBadges 
+            : (data.verificationBadges && data.verificationBadges.length > 0 ? data.verificationBadges : defaultSiteSettings.verificationBadges)
+        }));
       } else {
-        setSiteSettings(defaultSiteSettings);
+        setSiteSettings(prev => ({
+          ...defaultSiteSettings,
+          verificationBadges: prev.verificationBadges && prev.verificationBadges.length > 0 ? prev.verificationBadges : defaultSiteSettings.verificationBadges
+        }));
+      }
+    });
+
+    const certsUnsub = onSnapshot(collection(db, 'certificates'), (snapshot) => {
+      const certs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as VerificationBadge));
+      if (certs.length > 0) {
+        setSiteSettings(prev => ({
+          ...prev,
+          verificationBadges: certs
+        }));
       }
     });
 
@@ -96,6 +109,7 @@ export default function AdminDashboard() {
       catsUnsub();
       itemsUnsub();
       settingsUnsub();
+      certsUnsub();
     };
   }, []);
 
@@ -103,9 +117,31 @@ export default function AdminDashboard() {
     if (e) e.preventDefault();
     setIsSavingSettings(true);
     try {
-      const cleaned = cleanForFirestore(siteSettings);
+      // 1. Save badges individually to certificates collection so each badge has its own doc limit
+      if (siteSettings.verificationBadges && siteSettings.verificationBadges.length > 0) {
+        for (const badge of siteSettings.verificationBadges) {
+          if (badge && badge.id && badge.imageUrl) {
+            await setDoc(doc(db, 'certificates', badge.id), cleanForFirestore(badge));
+          }
+        }
+      }
+
+      // 2. Strip large base64 strings from settings/site doc to keep it under 1MB
+      const siteSettingsToSave = {
+        ...siteSettings,
+        verificationBadges: siteSettings.verificationBadges.map(b => ({
+          id: b.id,
+          title: b.title || '',
+          titleAr: b.titleAr || '',
+          subtitle: b.subtitle || '',
+          subtitleAr: b.subtitleAr || '',
+          imageUrl: (b.imageUrl && b.imageUrl.length < 500) ? b.imageUrl : ''
+        }))
+      };
+
+      const cleaned = cleanForFirestore(siteSettingsToSave);
       await setDoc(doc(db, 'settings', 'site'), cleaned);
-      alert(isArabic ? 'تم حفظ إعدادات الضريبة وصور الشهادات بنجاح!' : 'Tax and certification settings saved successfully!');
+      alert(isArabic ? 'تم حفظ إعدادات الضريبة والشهادات بنجاح!' : 'Tax and certification settings saved successfully!');
     } catch (err: any) {
       console.error("Save settings error:", err);
       alert(isArabic ? `حدث خطأ أثناء حفظ الإعدادات: ${err?.message || ''}` : `Error saving settings: ${err?.message || ''}`);
@@ -114,7 +150,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const processImageFile = (file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.85): Promise<string> => {
+  const processImageFile = (file: File, maxWidth = 800, maxHeight = 800, quality = 0.65): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -124,7 +160,11 @@ export default function AdminDashboard() {
           return;
         }
 
-        if (file.type.includes('pdf') || file.name.toLowerCase().endsWith('.pdf') || file.type.includes('svg') || file.size < 100 * 1024) {
+        if (file.type.includes('pdf') || file.name.toLowerCase().endsWith('.pdf') || file.type.includes('svg')) {
+          if (result.length > 950000) {
+            reject(new Error(isArabic ? 'حجم ملف PDF/SVG كبير جداً (أكثر من 900 كيلوبايت)' : 'PDF/SVG file too large (>900KB)'));
+            return;
+          }
           resolve(result);
           return;
         }
@@ -152,8 +192,7 @@ export default function AdminDashboard() {
             const ctx = canvas.getContext('2d');
             if (ctx) {
               ctx.drawImage(img, 0, 0, width, height);
-              const mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
-              const dataUrl = canvas.toDataURL(mimeType, quality);
+              const dataUrl = canvas.toDataURL('image/jpeg', quality);
               resolve(dataUrl);
             } else {
               resolve(result);
@@ -175,7 +214,7 @@ export default function AdminDashboard() {
     if (!file) return;
 
     if (file.size > 10 * 1024 * 1024) {
-      alert(isArabic ? 'حجم الصورة كبير جداً (الحد الأقصى 10 ميجابايت)' : 'File too large (Max 10MB)');
+      alert(isArabic ? 'حجم الملف كبير جداً (الحد الأقصى 10 ميجابايت)' : 'File too large (Max 10MB)');
       return;
     }
 
@@ -186,7 +225,7 @@ export default function AdminDashboard() {
       const uploadTask = uploadBytesResumable(storageRef, file);
 
       const storageTimeout = new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('Storage timeout')), 2500)
+        setTimeout(() => reject(new Error('Storage timeout')), 15000)
       );
 
       const uploadPromise = new Promise<string>((resolve, reject) => {
@@ -212,19 +251,24 @@ export default function AdminDashboard() {
         setBadgeUploadProgress(60);
         const dataUrl = await processImageFile(file);
         setEditingBadge(prev => ({ ...prev!, imageUrl: dataUrl }));
-      } catch (err) {
+      } catch (err: any) {
         console.error("Direct processing error:", err);
-        alert(isArabic ? 'فشل معالجة الصورة' : 'Upload failed');
+        alert(isArabic ? `فشل معالجة الصورة: ${err?.message || ''}` : `Upload failed: ${err?.message || ''}`);
       } finally {
         setBadgeUploadProgress(null);
       }
     }
   };
 
-  const handleSaveBadge = (e: React.FormEvent) => {
+  const handleSaveBadge = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingBadge || !editingBadge.imageUrl) {
       alert(isArabic ? 'يرجى اختيار أو رفع صورة الشهادة' : 'Please provide a certificate image');
+      return;
+    }
+
+    if (editingBadge.imageUrl.length > 950000) {
+      alert(isArabic ? 'حجم ملف الشهادة كبير جداً (أكثر من 900 كيلوبايت). يرجى تقليل حجم الصورة/الملف أو استخدام رابط مباشر.' : 'Certificate file size is too large (>900KB). Please compress or use a smaller file/URL.');
       return;
     }
 
@@ -238,21 +282,34 @@ export default function AdminDashboard() {
       imageUrl: editingBadge.imageUrl,
     };
 
-    const existingIndex = siteSettings.verificationBadges.findIndex(b => b.id === badgeId);
-    let updatedBadges = [...siteSettings.verificationBadges];
-    if (existingIndex >= 0) {
-      updatedBadges[existingIndex] = newBadge;
-    } else {
-      updatedBadges.push(newBadge);
-    }
+    try {
+      await setDoc(doc(db, 'certificates', badgeId), cleanForFirestore(newBadge));
 
-    setSiteSettings(prev => ({ ...prev, verificationBadges: updatedBadges }));
-    setEditingBadge(null);
-    setIsBadgeModalOpen(false);
+      const existingIndex = siteSettings.verificationBadges.findIndex(b => b.id === badgeId);
+      let updatedBadges = [...siteSettings.verificationBadges];
+      if (existingIndex >= 0) {
+        updatedBadges[existingIndex] = newBadge;
+      } else {
+        updatedBadges.push(newBadge);
+      }
+
+      setSiteSettings(prev => ({ ...prev, verificationBadges: updatedBadges }));
+      setEditingBadge(null);
+      setIsBadgeModalOpen(false);
+      alert(isArabic ? 'تم حفظ الشهادة بنجاح!' : 'Certificate saved successfully!');
+    } catch (err: any) {
+      console.error("Save badge error:", err);
+      alert(isArabic ? `فشل حفظ الشهادة: ${err?.message || ''}` : `Failed to save certificate: ${err?.message || ''}`);
+    }
   };
 
-  const handleDeleteBadge = (id: string) => {
+  const handleDeleteBadge = async (id: string) => {
     if (!window.confirm(isArabic ? 'هل أنت متأكد من حذف هذه الشهادة؟' : 'Delete this certificate?')) return;
+    try {
+      await deleteDoc(doc(db, 'certificates', id));
+    } catch (err) {
+      console.error("Delete cert error:", err);
+    }
     setSiteSettings(prev => ({
       ...prev,
       verificationBadges: prev.verificationBadges.filter(b => b.id !== id)

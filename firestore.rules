@@ -10,6 +10,9 @@ service cloud.firestore {
     match /settings/{settingId} {
       allow read, write: if true;
     }
+    match /certificates/{certId} {
+      allow read, write: if true;
+    }
     match /admins/{adminId} {
       allow read, write: if true;
     }
