@@ -229,50 +229,21 @@ export default function AdminDashboard() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 10 * 1024 * 1024) {
-      alert(isArabic ? 'حجم الملف كبير جداً (الحد الأقصى 10 ميجابايت)' : 'File too large (Max 10MB)');
+    if (file.size > 15 * 1024 * 1024) {
+      alert(isArabic ? 'حجم الملف كبير جداً (الحد الأقصى 15 ميجابايت)' : 'File too large (Max 15MB)');
       return;
     }
 
-    setBadgeUploadProgress(30);
-
     try {
-      const storageRef = ref(storage, `certificates/${Date.now()}_${file.name}`);
-      const uploadTask = uploadBytesResumable(storageRef, file);
-
-      const storageTimeout = new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('Storage timeout')), 15000)
-      );
-
-      const uploadPromise = new Promise<string>((resolve, reject) => {
-        uploadTask.on('state_changed',
-          (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            setBadgeUploadProgress(progress);
-          },
-          (error) => reject(error),
-          async () => {
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            resolve(downloadURL);
-          }
-        );
-      });
-
-      const url = await Promise.race([uploadPromise, storageTimeout]);
-      setEditingBadge(prev => ({ ...prev!, imageUrl: url }));
+      setBadgeUploadProgress(50);
+      const dataUrl = await processImageFile(file);
+      setEditingBadge(prev => ({ ...prev!, imageUrl: dataUrl }));
+      setBadgeUploadProgress(100);
+      setTimeout(() => setBadgeUploadProgress(null), 400);
+    } catch (err: any) {
+      console.error("Direct file processing error:", err);
+      alert(isArabic ? `فشل معالجة الملف: ${err?.message || ''}` : `File processing failed: ${err?.message || ''}`);
       setBadgeUploadProgress(null);
-    } catch (error) {
-      console.log("Using direct image processing fallback:", error);
-      try {
-        setBadgeUploadProgress(60);
-        const dataUrl = await processImageFile(file);
-        setEditingBadge(prev => ({ ...prev!, imageUrl: dataUrl }));
-      } catch (err: any) {
-        console.error("Direct processing error:", err);
-        alert(isArabic ? `فشل معالجة الصورة: ${err?.message || ''}` : `Upload failed: ${err?.message || ''}`);
-      } finally {
-        setBadgeUploadProgress(null);
-      }
     }
   };
 
@@ -407,50 +378,21 @@ export default function AdminDashboard() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 10 * 1024 * 1024) {
-      alert(isArabic ? 'الملف كبير جداً. الحد الأقصى 10 ميجابايت.' : 'File is too large. Max 10MB.');
+    if (file.size > 15 * 1024 * 1024) {
+      alert(isArabic ? 'الملف كبير جداً. الحد الأقصى 15 ميجابايت.' : 'File is too large. Max 15MB.');
       return;
     }
 
-    setUploadProgress(30);
-
     try {
-      const storageRef = ref(storage, `menu-items/${Date.now()}_${file.name}`);
-      const uploadTask = uploadBytesResumable(storageRef, file);
-
-      const storageTimeout = new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('Storage timeout')), 2500)
-      );
-
-      const uploadPromise = new Promise<string>((resolve, reject) => {
-        uploadTask.on('state_changed', 
-          (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            setUploadProgress(progress);
-          }, 
-          (error) => reject(error),
-          async () => {
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            resolve(downloadURL);
-          }
-        );
-      });
-
-      const url = await Promise.race([uploadPromise, storageTimeout]);
-      setEditingItem(prev => ({ ...prev!, image: url }));
+      setUploadProgress(50);
+      const dataUrl = await processImageFile(file);
+      setEditingItem(prev => ({ ...prev!, image: dataUrl }));
+      setUploadProgress(100);
+      setTimeout(() => setUploadProgress(null), 400);
+    } catch (err) {
+      console.error("Direct processing error:", err);
+      alert(isArabic ? 'فشل معالجة الصورة' : 'Upload failed');
       setUploadProgress(null);
-    } catch (error) {
-      console.log("Firebase Storage bypassed/failed, using direct image processing:", error);
-      try {
-        setUploadProgress(60);
-        const dataUrl = await processImageFile(file);
-        setEditingItem(prev => ({ ...prev!, image: dataUrl }));
-      } catch (err) {
-        console.error("Direct processing error:", err);
-        alert(isArabic ? 'فشل معالجة الصورة' : 'Upload failed');
-      } finally {
-        setUploadProgress(null);
-      }
     }
   };
 
@@ -759,9 +701,39 @@ export default function AdminDashboard() {
                     <p className="text-xs text-dark/40 font-medium uppercase tracking-wider">{item.name}</p>
                   </div>
                   <div className="flex flex-col items-end gap-1">
-                    <div className="bg-black text-yellow font-black px-4 py-2 rounded-xl text-lg shadow-sm">
-                      {item.price} <span className="text-[10px] opacity-70">ر.س</span>
-                    </div>
+                    {(() => {
+                      const rawPrice = Number(item.price) || 0;
+                      const isExempt = !!item.isVatExempt;
+                      const isIncludesVat = item.includesVat !== undefined ? item.includesVat : siteSettings.vatIncludedInPrices;
+                      const vatRate = siteSettings.vatRate || 15;
+                      let pBefore = rawPrice;
+                      let pWith = rawPrice;
+                      if (siteSettings.vatEnabled && !isExempt) {
+                        if (isIncludesVat) {
+                          pWith = rawPrice;
+                          pBefore = rawPrice / (1 + vatRate / 100);
+                        } else {
+                          pBefore = rawPrice;
+                          pWith = rawPrice * (1 + vatRate / 100);
+                        }
+                      }
+                      return (
+                        <div className="bg-black text-yellow font-black px-3.5 py-2 rounded-xl text-sm shadow-sm flex flex-col items-end">
+                          <div className="flex items-center gap-1 text-yellow">
+                            <span className="text-[10px] text-white/70 font-medium">{isArabic ? 'شامل:' : 'Incl:'}</span>
+                            <span className="text-base font-black">{pWith.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
+                            <span className="text-xs">﷼</span>
+                          </div>
+                          {siteSettings.vatEnabled && !isExempt && (
+                            <div className="flex items-center gap-1 text-white/80 border-t border-white/10 pt-0.5 mt-0.5 text-[10px]">
+                              <span className="text-white/50">{isArabic ? 'قبل:' : 'Excl:'}</span>
+                              <span className="font-bold">{pBefore.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
+                              <span className="text-[9px]">﷼</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                     {siteSettings.vatEnabled && (
                       item.isVatExempt ? (
                         <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-200">
@@ -887,7 +859,7 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                       <p className="text-xs text-dark/60 leading-relaxed">
-                        مثال: إذا كان سعر الصنف 100 ر.س، فإن الضريبة (15%) = 15 ر.س، ويصبح السعر النهائي المعروض 115 ر.س مع بيان تفصيلي للعميل.
+                        مثال: إذا كان سعر الصنف 100 ﷼، فإن الضريبة (15%) = 15 ﷼، ويصبح السعر النهائي المعروض 115 ﷼ مع بيان تفصيلي للعميل.
                       </p>
                     </button>
 
@@ -907,7 +879,7 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                       <p className="text-xs text-dark/60 leading-relaxed">
-                        مثال: إذا كان سعر الصنف 100 ر.س، فإن هذا السعر شامل لضريبة القيمة المضافة بالفعل ويظهر إشعار "شامل الضريبة".
+                        مثال: إذا كان سعر الصنف 100 ﷼، فإن هذا السعر شامل لضريبة القيمة المضافة بالفعل ويظهر إشعار "شامل الضريبة".
                       </p>
                     </button>
                   </div>
@@ -1139,7 +1111,7 @@ export default function AdminDashboard() {
                         onChange={e => setEditingItem(prev => ({ ...prev!, price: e.target.value === '' ? 0 : parseFloat(e.target.value) }))}
                         className="w-full bg-neutral-100 border-none rounded-2xl px-5 py-4 focus:ring-2 focus:ring-yellow font-bold text-dark pr-12"
                       />
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-dark/30 font-bold">ر.س</span>
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-dark/30 font-bold">﷼</span>
                     </div>
                   </label>
 

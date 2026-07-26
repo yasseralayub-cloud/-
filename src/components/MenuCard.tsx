@@ -22,9 +22,27 @@ export default function MenuCard({
   const isExempt = !!item.isVatExempt;
   const isIncludesVat = item.includesVat !== undefined ? item.includesVat : vatIncludedInPrices;
 
-  // Calculate VAT if applicable
-  const vatAmount = vatEnabled && !isExempt && !isIncludesVat ? itemPrice * (vatRate / 100) : 0;
-  const totalPriceWithVat = itemPrice + vatAmount;
+  // Calculate prices before and after VAT
+  let priceBeforeVat = itemPrice;
+  let priceWithVat = itemPrice;
+  let calculatedVatAmount = 0;
+
+  if (vatEnabled && !isExempt) {
+    if (isIncludesVat) {
+      priceWithVat = itemPrice;
+      priceBeforeVat = itemPrice / (1 + vatRate / 100);
+      calculatedVatAmount = priceWithVat - priceBeforeVat;
+    } else {
+      priceBeforeVat = itemPrice;
+      calculatedVatAmount = itemPrice * (vatRate / 100);
+      priceWithVat = itemPrice + calculatedVatAmount;
+    }
+  }
+
+  // Format price using English/Western digits
+  const formatPrice = (val: number) => {
+    return val.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  };
 
   return (
     <motion.div
@@ -72,37 +90,51 @@ export default function MenuCard({
               {item.category}
             </p>
           </div>
-          <div className="flex flex-col items-end">
-            <div className="bg-dark text-yellow px-4 py-2 rounded-2xl flex items-center gap-1 shadow-md group-hover:scale-110 transition-transform duration-300">
-              <span className="font-sans text-lg font-black leading-none">
-                {itemPrice.toLocaleString('ar-SA', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-              </span>
-              <span className="text-[10px] opacity-70 font-bold uppercase tracking-tighter">
-                ر.س
-              </span>
-            </div>
+          <div className="flex flex-col items-end gap-1.5">
+            {vatEnabled && !isExempt ? (
+              <div className="bg-dark text-yellow px-4 py-2.5 rounded-2xl flex flex-col items-end shadow-md group-hover:scale-105 transition-transform duration-300">
+                {/* After Tax Price (السعر شامل الضريبة) */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-white/70 font-bold">
+                    {isArabic ? 'شامل الضريبة:' : 'Incl. VAT:'}
+                  </span>
+                  <span className="font-sans text-lg font-black leading-none text-yellow">
+                    {formatPrice(priceWithVat)}
+                  </span>
+                  <SarSymbol className="text-xs font-bold text-yellow" />
+                </div>
+                {/* Before Tax Price (السعر قبل الضريبة) */}
+                <div className="flex items-center gap-1 border-t border-white/10 pt-1 mt-1 text-white/80 w-full justify-end">
+                  <span className="text-[9px] text-white/60 font-medium">
+                    {isArabic ? 'قبل الضريبة:' : 'Excl. VAT:'}
+                  </span>
+                  <span className="font-sans text-xs font-bold text-white">
+                    {formatPrice(priceBeforeVat)}
+                  </span>
+                  <SarSymbol className="text-[10px] font-bold text-white/70" />
+                </div>
+              </div>
+            ) : (
+              <div className="bg-dark text-yellow px-4 py-2 rounded-2xl flex items-center gap-1 shadow-md group-hover:scale-105 transition-transform duration-300">
+                <span className="font-sans text-lg font-black leading-none">
+                  {formatPrice(itemPrice)}
+                </span>
+                <SarSymbol className="text-xs font-bold text-yellow" />
+              </div>
+            )}
 
             {/* VAT Display Tag */}
             {vatEnabled && (
               isExempt ? (
-                <span className="text-[9px] text-amber-700 bg-amber-50 font-bold mt-1 tracking-tighter px-2 py-0.5 rounded-full border border-amber-200/60">
+                <span className="text-[9px] text-amber-700 bg-amber-50 font-bold tracking-tighter px-2.5 py-0.5 rounded-full border border-amber-200/60">
                   {isArabic ? 'معفى من الضريبة' : 'VAT Exempt'}
                 </span>
-              ) : isIncludesVat ? (
-                <span className="text-[9px] text-emerald-700 bg-emerald-50 font-bold mt-1 tracking-tighter px-2 py-0.5 rounded-full border border-emerald-200/60">
-                  {isArabic ? 'السعر شامل الضريبة' : 'VAT Included'}
-                </span>
               ) : (
-                <div className="flex flex-col items-end mt-1">
-                  <span className="text-[9px] text-rose-700 bg-rose-50 font-black tracking-tighter px-2 py-0.5 rounded-full border border-rose-200/60">
-                    {isArabic ? `لا يشمل الضريبة (+${vatRate}%)` : `Excl. VAT (+${vatRate}%)`}
-                  </span>
-                  <span className="text-[9px] text-dark/60 font-black mt-0.5">
-                    {isArabic 
-                      ? `الإجمالي مع الضريبة: ${totalPriceWithVat.toFixed(2)} ر.س` 
-                      : `Total with VAT: ${totalPriceWithVat.toFixed(2)} SAR`}
-                  </span>
-                </div>
+                <span className="text-[9px] text-emerald-800 bg-emerald-50/90 font-bold tracking-tighter px-2.5 py-0.5 rounded-full border border-emerald-200/60">
+                  {isArabic 
+                    ? `مبلغ الضريبة (${vatRate}%): ${formatPrice(calculatedVatAmount)} ﷼` 
+                    : `VAT (${vatRate}%): ${formatPrice(calculatedVatAmount)} ﷼`}
+                </span>
               )
             )}
           </div>

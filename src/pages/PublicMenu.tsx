@@ -224,8 +224,8 @@ export default function PublicMenu() {
             <div className="inline-flex items-center gap-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 px-5 py-2.5 rounded-full text-xs font-bold shadow-xs">
               <span>
                 {isArabic 
-                  ? `جميع الأسعار شاملة ضريبة القيمة المضافة (${settings.vatRate || 15}%)` 
-                  : `All prices include ${settings.vatRate || 15}% VAT`}
+                  ? `يتم عرض الأسعار قبل وبعد ضريبة القيمة المضافة (${settings.vatRate || 15}%)` 
+                  : `Prices are displayed before and after ${settings.vatRate || 15}% VAT`}
               </span>
               {settings.vatNumber && (
                 <span className="hidden sm:inline border-r border-emerald-500/30 pr-2 mr-1">
