@@ -6,6 +6,7 @@ import CategoryFilter from '../components/CategoryFilter';
 import MenuCard from '../components/MenuCard';
 import VerificationCarousel from '../components/VerificationCarousel';
 import { MenuItem, Category, SiteSettings, VerificationBadge } from '../types';
+import { resolveVerificationBadges } from '../lib/badgeUtils';
 import { db } from '../lib/firebase';
 import { collection, doc, onSnapshot } from 'firebase/firestore';
 import { categories as mockCategories, menuItems as mockMenuItems } from '../data/mockMenu';
@@ -17,6 +18,7 @@ export default function PublicMenu() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [settings, setSettings] = useState<SiteSettings>(defaultSiteSettings);
+  const [certCollectionBadges, setCertCollectionBadges] = useState<VerificationBadge[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -49,18 +51,13 @@ export default function PublicMenu() {
     const settingsUnsub = onSnapshot(doc(db, 'settings', 'site'), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data() as SiteSettings;
-        setSettings(prev => ({
+        setSettings({
           ...defaultSiteSettings,
           ...data,
-          verificationBadges: prev.verificationBadges && prev.verificationBadges.length > 0
-            ? prev.verificationBadges
-            : (data.verificationBadges && data.verificationBadges.length > 0 ? data.verificationBadges : defaultSiteSettings.verificationBadges)
-        }));
+          verificationBadges: data.verificationBadges || []
+        });
       } else {
-        setSettings(prev => ({
-          ...defaultSiteSettings,
-          verificationBadges: prev.verificationBadges && prev.verificationBadges.length > 0 ? prev.verificationBadges : defaultSiteSettings.verificationBadges
-        }));
+        setSettings(defaultSiteSettings);
       }
     }, (err) => {
       console.error("Settings load error:", err);
@@ -69,12 +66,7 @@ export default function PublicMenu() {
     // Fetch certificates collection
     const certsUnsub = onSnapshot(collection(db, 'certificates'), (snapshot) => {
       const certs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as VerificationBadge));
-      if (certs.length > 0) {
-        setSettings(prev => ({
-          ...prev,
-          verificationBadges: certs
-        }));
-      }
+      setCertCollectionBadges(certs);
     }, (err) => {
       console.error("Certificates load error:", err);
     });
@@ -448,7 +440,7 @@ export default function PublicMenu() {
 
       {/* Official Certificates Verification Section */}
       <VerificationCarousel 
-        badges={settings.verificationBadges} 
+        badges={resolveVerificationBadges(settings.verificationBadges, certCollectionBadges)} 
         isArabic={isArabic} 
         vatNumber={settings.vatNumber} 
         crNumber={settings.crNumber} 

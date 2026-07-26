@@ -4,6 +4,7 @@ import { collection, onSnapshot, updateDoc, deleteDoc, doc, setDoc } from 'fireb
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { MenuItem, Category, SiteSettings, VerificationBadge } from '../types';
 import { defaultSiteSettings } from '../data/defaultSettings';
+import { resolveVerificationBadges } from '../lib/badgeUtils';
 import { Plus, Edit, Trash2, LogOut, Image, Save, X, Flame, Upload, Loader2, ChevronUp, ChevronDown, ListOrdered, ShieldCheck, Receipt, Utensils, RotateCcw } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -77,32 +78,37 @@ export default function AdminDashboard() {
       setMenuItems(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as MenuItem)));
     });
 
+    let fetchedSiteBadges: VerificationBadge[] = [];
+    let fetchedCerts: VerificationBadge[] = [];
+
+    const updateAdminBadges = () => {
+      setSiteSettings(prev => ({
+        ...prev,
+        verificationBadges: resolveVerificationBadges(fetchedSiteBadges, fetchedCerts)
+      }));
+    };
+
     const settingsUnsub = onSnapshot(doc(db, 'settings', 'site'), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data() as SiteSettings;
+        fetchedSiteBadges = data.verificationBadges || [];
         setSiteSettings(prev => ({
           ...defaultSiteSettings,
           ...data,
-          verificationBadges: prev.verificationBadges && prev.verificationBadges.length > 0 
-            ? prev.verificationBadges 
-            : (data.verificationBadges && data.verificationBadges.length > 0 ? data.verificationBadges : defaultSiteSettings.verificationBadges)
+          verificationBadges: resolveVerificationBadges(fetchedSiteBadges, fetchedCerts)
         }));
       } else {
+        fetchedSiteBadges = defaultSiteSettings.verificationBadges;
         setSiteSettings(prev => ({
           ...defaultSiteSettings,
-          verificationBadges: prev.verificationBadges && prev.verificationBadges.length > 0 ? prev.verificationBadges : defaultSiteSettings.verificationBadges
+          verificationBadges: resolveVerificationBadges(fetchedSiteBadges, fetchedCerts)
         }));
       }
     });
 
     const certsUnsub = onSnapshot(collection(db, 'certificates'), (snapshot) => {
-      const certs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as VerificationBadge));
-      if (certs.length > 0) {
-        setSiteSettings(prev => ({
-          ...prev,
-          verificationBadges: certs
-        }));
-      }
+      fetchedCerts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as VerificationBadge));
+      updateAdminBadges();
     });
 
     return () => {
