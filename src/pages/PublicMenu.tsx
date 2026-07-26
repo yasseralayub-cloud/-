@@ -4,6 +4,7 @@ import { Phone, MapPin, Search, X, Receipt } from 'lucide-react';
 import MenuHeader from '../components/MenuHeader';
 import CategoryFilter from '../components/CategoryFilter';
 import MenuCard from '../components/MenuCard';
+import VerificationCarousel from '../components/VerificationCarousel';
 import { MenuItem, Category, SiteSettings } from '../types';
 import { db } from '../lib/firebase';
 import { collection, doc, onSnapshot } from 'firebase/firestore';
@@ -422,6 +423,14 @@ export default function PublicMenu() {
           ></iframe>
         </div>
       </section>
+
+      {/* Official Certificates Verification Section */}
+      <VerificationCarousel 
+        badges={settings.verificationBadges} 
+        isArabic={isArabic} 
+        vatNumber={settings.vatNumber} 
+        crNumber={settings.crNumber} 
+      />
 
       {/* Footer social icons and info */}
       <footer className="mt-24 py-16 border-t border-black/5 bg-black text-center text-white">
