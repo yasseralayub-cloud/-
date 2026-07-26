@@ -10,6 +10,7 @@ export interface MenuItem {
   calories?: number;
   isPopular?: boolean;
   isVatExempt?: boolean;
+  includesVat?: boolean;
 }
 
 export interface Category {

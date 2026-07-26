@@ -62,29 +62,40 @@ export default function VerificationCarousel({ badges, isArabic, vatNumber, crNu
 
       {/* Direct Clean Images Grid */}
       <div className={`grid grid-cols-1 ${badges.length > 1 ? 'sm:grid-cols-2' : ''} gap-6`}>
-        {badges.map((badge, index) => (
-          <motion.div
-            key={badge.id || index}
-            whileHover={{ scale: 1.02 }}
-            transition={{ duration: 0.2 }}
-            onClick={() => setSelectedBadge(badge)}
-            className="group relative bg-white border border-black/10 rounded-3xl p-3 shadow-lg hover:shadow-2xl transition-all cursor-pointer overflow-hidden flex items-center justify-center aspect-[16/10]"
-          >
-            <img
-              src={badge.imageUrl}
-              alt={badge.titleAr || badge.title || 'Certificate'}
-              className="w-full h-full object-contain rounded-2xl"
-            />
+        {badges.map((badge, index) => {
+          const isPdf = badge.imageUrl.startsWith('data:application/pdf') || badge.imageUrl.toLowerCase().includes('.pdf');
+          return (
+            <motion.div
+              key={badge.id || index}
+              whileHover={{ scale: 1.02 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setSelectedBadge(badge)}
+              className="group relative bg-white border border-black/10 rounded-3xl p-3 shadow-lg hover:shadow-2xl transition-all cursor-pointer overflow-hidden flex items-center justify-center aspect-[16/10]"
+            >
+              {isPdf ? (
+                <iframe
+                  src={`${badge.imageUrl}#toolbar=0&navpanes=0`}
+                  title={badge.titleAr || badge.title || 'PDF Certificate'}
+                  className="w-full h-full rounded-2xl border-none pointer-events-none"
+                />
+              ) : (
+                <img
+                  src={badge.imageUrl}
+                  alt={badge.titleAr || badge.title || 'Certificate'}
+                  className="w-full h-full object-contain rounded-2xl"
+                />
+              )}
 
-            {/* Hover Enlarge Overlay */}
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-xs rounded-3xl">
-              <div className="bg-yellow text-black font-black px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-xl">
-                <Maximize2 size={16} />
-                <span>{isArabic ? 'تكبير الصورة' : 'Enlarge Image'}</span>
+              {/* Hover Enlarge Overlay */}
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-xs rounded-3xl">
+                <div className="bg-yellow text-black font-black px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-xl">
+                  <Maximize2 size={16} />
+                  <span>{isArabic ? 'عرض الوثيقة' : 'View Document'}</span>
+                </div>
               </div>
-            </div>
-          </motion.div>
-        ))}
+            </motion.div>
+          );
+        })}
       </div>
 
       {/* Lightbox Modal */}
@@ -105,14 +116,22 @@ export default function VerificationCarousel({ badges, isArabic, vatNumber, crNu
             </button>
 
             <div 
-              className="relative max-w-5xl w-full max-h-[90vh] flex items-center justify-center p-2"
+              className="relative max-w-5xl w-full h-[88vh] flex items-center justify-center p-2"
               onClick={(e) => e.stopPropagation()}
             >
-              <img
-                src={selectedBadge.imageUrl}
-                alt={selectedBadge.titleAr || selectedBadge.title || 'Certificate'}
-                className="max-w-full max-h-[85vh] object-contain rounded-2xl bg-white shadow-2xl p-2"
-              />
+              {(selectedBadge.imageUrl.startsWith('data:application/pdf') || selectedBadge.imageUrl.toLowerCase().includes('.pdf')) ? (
+                <iframe
+                  src={selectedBadge.imageUrl}
+                  title={selectedBadge.titleAr || selectedBadge.title || 'Certificate Document'}
+                  className="w-full h-full rounded-2xl bg-white shadow-2xl border-none"
+                />
+              ) : (
+                <img
+                  src={selectedBadge.imageUrl}
+                  alt={selectedBadge.titleAr || selectedBadge.title || 'Certificate'}
+                  className="max-w-full max-h-[85vh] object-contain rounded-2xl bg-white shadow-2xl p-2"
+                />
+              )}
             </div>
           </motion.div>
         )}

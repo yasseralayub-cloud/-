@@ -104,7 +104,7 @@ export default function AdminDashboard() {
           return;
         }
 
-        if (file.type.includes('svg') || file.size < 100 * 1024) {
+        if (file.type.includes('pdf') || file.name.toLowerCase().endsWith('.pdf') || file.type.includes('svg') || file.size < 100 * 1024) {
           resolve(result);
           return;
         }
@@ -258,17 +258,28 @@ export default function AdminDashboard() {
     if (!editingItem) return;
 
     try {
-      const itemData = {
+      const parsedPrice = typeof editingItem.price === 'number' ? editingItem.price : parseFloat(String(editingItem.price || 0));
+      const itemData: MenuItem = {
         ...editingItem,
         id: editingItem.id || `item_${Date.now()}`,
-      } as MenuItem;
+        name: editingItem.name || '',
+        nameAr: editingItem.nameAr || '',
+        description: editingItem.description || '',
+        descriptionAr: editingItem.descriptionAr || '',
+        price: isNaN(parsedPrice) ? 0 : parsedPrice,
+        category: editingItem.category || categories[0]?.id || 'grills',
+        image: editingItem.image || '',
+        isPopular: !!editingItem.isPopular,
+        isVatExempt: !!editingItem.isVatExempt,
+        includesVat: editingItem.includesVat !== undefined ? editingItem.includesVat : siteSettings.vatIncludedInPrices,
+      };
 
       await setDoc(doc(db, 'menuItems', itemData.id), itemData);
       setIsModalOpen(false);
       setEditingItem(null);
-    } catch (error) {
-      console.error("Scale save error:", error);
-      alert('فشل حفظ الصنف. تحقق من الصلاحيات.');
+    } catch (error: any) {
+      console.error("Save item error:", error);
+      alert(isArabic ? `فشل حفظ الصنف: ${error?.message || 'يرجى التأكد من البيانات'}` : `Failed to save item: ${error?.message || 'Check inputs'}`);
     }
   };
 
@@ -644,9 +655,13 @@ export default function AdminDashboard() {
                         <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-200">
                           {isArabic ? 'معفى من الضريبة' : 'VAT Exempt'}
                         </span>
-                      ) : (
+                      ) : (item.includesVat !== undefined ? item.includesVat : siteSettings.vatIncludedInPrices) ? (
                         <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200">
-                          {isArabic ? 'خاضع للضريبة' : 'Taxable'}
+                          {isArabic ? 'شامل الضريبة' : 'VAT Incl.'}
+                        </span>
+                      ) : (
+                        <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 border border-rose-200">
+                          {isArabic ? 'لا يشمل الضريبة' : 'Excl. VAT'}
                         </span>
                       )
                     )}
@@ -726,8 +741,8 @@ export default function AdminDashboard() {
                 {/* VAT Toggle */}
                 <div className="bg-neutral-50 p-6 rounded-2xl border border-black/5 flex items-center justify-between">
                   <div>
-                    <label className="block font-black text-dark text-base mb-1">حالة الضريبة المضافة</label>
-                    <p className="text-xs text-dark/50">تفعيل إظهار إشعار "الأسعار شاملة الضريبة" في المنيو والبطاقات</p>
+                    <label className="block font-black text-dark text-base mb-1">تفعيل ضريبة القيمة المضافة</label>
+                    <p className="text-xs text-dark/50">تفعيل خيار الضريبة المضافة للوجبات والمنيو</p>
                   </div>
                   <button
                     type="button"
@@ -738,6 +753,52 @@ export default function AdminDashboard() {
                   >
                     <motion.div layout className="w-7 h-7 bg-white rounded-full shadow-md" />
                   </button>
+                </div>
+
+                {/* VAT Inclusion Mode Option */}
+                <div className="bg-neutral-50 p-6 rounded-2xl border border-black/5 md:col-span-2">
+                  <label className="block font-black text-dark text-sm mb-3">طريقة احتساب واحتساب الضريبة المضافة للأسعار:</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setSiteSettings(prev => ({ ...prev, vatIncludedInPrices: false }))}
+                      className={`p-5 rounded-2xl border-2 text-right transition-all flex flex-col justify-between cursor-pointer ${
+                        !siteSettings.vatIncludedInPrices 
+                          ? 'border-yellow bg-yellow/10 font-bold shadow-md' 
+                          : 'border-black/5 bg-white text-dark/70 hover:bg-neutral-100'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-black text-sm text-dark">الأسعار المكتوبة لا تشمل الضريبة</span>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${!siteSettings.vatIncludedInPrices ? 'border-black bg-yellow' : 'border-neutral-300'}`}>
+                          {!siteSettings.vatIncludedInPrices && <div className="w-2 h-2 rounded-full bg-black" />}
+                        </div>
+                      </div>
+                      <p className="text-xs text-dark/60 leading-relaxed">
+                        مثال: إذا كان سعر الصنف 100 ر.س، فإن الضريبة (15%) = 15 ر.س، ويصبح السعر النهائي المعروض 115 ر.س مع بيان تفصيلي للعميل.
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setSiteSettings(prev => ({ ...prev, vatIncludedInPrices: true }))}
+                      className={`p-5 rounded-2xl border-2 text-right transition-all flex flex-col justify-between cursor-pointer ${
+                        siteSettings.vatIncludedInPrices 
+                          ? 'border-yellow bg-yellow/10 font-bold shadow-md' 
+                          : 'border-black/5 bg-white text-dark/70 hover:bg-neutral-100'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-black text-sm text-dark">الأسعار المكتوبة شاملة الضريبة</span>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${siteSettings.vatIncludedInPrices ? 'border-black bg-yellow' : 'border-neutral-300'}`}>
+                          {siteSettings.vatIncludedInPrices && <div className="w-2 h-2 rounded-full bg-black" />}
+                        </div>
+                      </div>
+                      <p className="text-xs text-dark/60 leading-relaxed">
+                        مثال: إذا كان سعر الصنف 100 ر.س، فإن هذا السعر شامل لضريبة القيمة المضافة بالفعل ويظهر إشعار "شامل الضريبة".
+                      </p>
+                    </button>
+                  </div>
                 </div>
 
                 {/* VAT Rate */}
@@ -1004,7 +1065,7 @@ export default function AdminDashboard() {
                         <div className="relative">
                           <input 
                             type="file" 
-                            accept="image/*"
+                            accept="image/*,.pdf,application/pdf"
                             onChange={handleImageUpload}
                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                             disabled={uploadProgress !== null}
@@ -1072,7 +1133,7 @@ export default function AdminDashboard() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                  <div className="space-y-4 pt-2">
                     {/* Popular Toggle */}
                     <label className="flex items-center gap-3 cursor-pointer group bg-neutral-100 p-4 rounded-2xl border border-black/5 hover:bg-neutral-200/60 transition-colors">
                       <div className="relative flex-shrink-0">
@@ -1088,27 +1149,52 @@ export default function AdminDashboard() {
                       <span className="font-bold text-xs text-dark">{isArabic ? 'تمييز كـ "شائع" (Popular)' : 'Mark as Popular'}</span>
                     </label>
 
-                    {/* VAT Subject Toggle */}
-                    <label className="flex items-center gap-3 cursor-pointer group bg-neutral-100 p-4 rounded-2xl border border-black/5 hover:bg-neutral-200/60 transition-colors">
-                      <div className="relative flex-shrink-0">
-                        <input 
-                          type="checkbox" 
-                          checked={!editingItem?.isVatExempt}
-                          onChange={e => setEditingItem(prev => ({ ...prev!, isVatExempt: !e.target.checked }))}
-                          className="sr-only"
-                        />
-                        <div className={`w-11 h-6 rounded-full transition-colors ${!editingItem?.isVatExempt ? 'bg-emerald-500' : 'bg-neutral-300'}`} />
-                        <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${!editingItem?.isVatExempt ? 'translate-x-5' : ''}`} />
+                    {/* VAT Option selector for this item */}
+                    <div className="bg-neutral-100 p-4 rounded-2xl border border-black/5 space-y-2">
+                      <span className="text-xs font-black text-dark block">
+                        {isArabic ? 'حالة ضريبة القيمة المضافة لهذا الصنف:' : 'VAT Status for this item:'}
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditingItem(prev => ({ ...prev!, isVatExempt: false, includesVat: false }))}
+                          className={`p-3 rounded-xl border text-xs font-bold transition-all text-center cursor-pointer ${
+                            !editingItem?.isVatExempt && editingItem?.includesVat === false
+                              ? 'bg-yellow text-black border-black font-black shadow-sm'
+                              : 'bg-white text-dark/70 border-black/5 hover:bg-neutral-50'
+                          }`}
+                        >
+                          {isArabic ? 'السعر لا يشمل الضريبة' : 'Excludes VAT'}
+                          <span className="block text-[9px] opacity-75 font-normal">{isArabic ? '(تُضاف 15% ضريبة)' : '(+15% VAT added)'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setEditingItem(prev => ({ ...prev!, isVatExempt: false, includesVat: true }))}
+                          className={`p-3 rounded-xl border text-xs font-bold transition-all text-center cursor-pointer ${
+                            !editingItem?.isVatExempt && editingItem?.includesVat !== false
+                              ? 'bg-yellow text-black border-black font-black shadow-sm'
+                              : 'bg-white text-dark/70 border-black/5 hover:bg-neutral-50'
+                          }`}
+                        >
+                          {isArabic ? 'السعر شامل الضريبة' : 'Includes VAT'}
+                          <span className="block text-[9px] opacity-75 font-normal">{isArabic ? '(السعر نهائي)' : '(Final Price)'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setEditingItem(prev => ({ ...prev!, isVatExempt: true }))}
+                          className={`p-3 rounded-xl border text-xs font-bold transition-all text-center cursor-pointer ${
+                            editingItem?.isVatExempt
+                              ? 'bg-amber-100 text-amber-900 border-amber-300 font-black shadow-sm'
+                              : 'bg-white text-dark/70 border-black/5 hover:bg-neutral-50'
+                          }`}
+                        >
+                          {isArabic ? 'معفى من الضريبة' : 'VAT Exempt'}
+                          <span className="block text-[9px] opacity-75 font-normal">{isArabic ? '(0% ضريبة)' : '(0% VAT)'}</span>
+                        </button>
                       </div>
-                      <div>
-                        <span className="font-bold text-xs text-dark block">{isArabic ? 'خاضع لضريبة القيمة المضافة' : 'Subject to VAT'}</span>
-                        <span className="text-[10px] text-dark/50 block font-medium">
-                          {editingItem?.isVatExempt 
-                            ? (isArabic ? 'منتج معفى من الضريبة' : 'VAT Exempt item') 
-                            : (isArabic ? 'تطبق الضريبة على هذا المنتج' : 'VAT applies to this product')}
-                        </span>
-                      </div>
-                    </label>
+                    </div>
                   </div>
                 </div>
 
@@ -1421,14 +1507,14 @@ export default function AdminDashboard() {
                 <div>
                   <label className="block text-xs font-black uppercase text-dark/50 mb-2">صورة الشهادة</label>
                   
-                  {/* Image Upload Box */}
+                  {/* Image/PDF Upload Box */}
                   <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-black/10 hover:border-yellow rounded-2xl cursor-pointer bg-neutral-50 hover:bg-yellow/5 transition-all mb-3">
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
                       <Upload size={28} className="text-dark/40 mb-2" />
-                      <p className="text-xs font-bold text-dark/70">اضغط لرفع صورة من جهازك</p>
-                      <p className="text-[10px] text-dark/40 mt-1">PNG, JPG, SVG حتى 5 ميجابايت</p>
+                      <p className="text-xs font-bold text-dark/70">اضغط لرفع صورة أو ملف PDF من جهازك</p>
+                      <p className="text-[10px] text-dark/40 mt-1">PNG, JPG, SVG, PDF حتى 10 ميجابايت</p>
                     </div>
-                    <input type="file" accept="image/*" onChange={handleBadgeImageUpload} className="hidden" />
+                    <input type="file" accept="image/*,.pdf,application/pdf" onChange={handleBadgeImageUpload} className="hidden" />
                   </label>
 
                   {badgeUploadProgress !== null && (
@@ -1437,9 +1523,9 @@ export default function AdminDashboard() {
                     </div>
                   )}
 
-                  {/* Direct Image URL input */}
+                  {/* Direct Image/PDF URL input */}
                   <div>
-                    <label className="block text-[11px] font-bold text-dark/40 mb-1">أو أدخل رابط الصورة مباشرة (Image URL):</label>
+                    <label className="block text-[11px] font-bold text-dark/40 mb-1">أو أدخل رابط الملف/الصورة مباشرة (URL):</label>
                     <input
                       type="text"
                       value={editingBadge?.imageUrl || ''}
@@ -1451,8 +1537,12 @@ export default function AdminDashboard() {
 
                   {/* Preview */}
                   {editingBadge?.imageUrl && (
-                    <div className="mt-3 bg-neutral-100 p-2 rounded-xl border border-black/5 h-32 flex items-center justify-center overflow-hidden">
-                      <img src={editingBadge.imageUrl} alt="Preview" className="max-h-full object-contain" />
+                    <div className="mt-3 bg-neutral-100 p-2 rounded-xl border border-black/5 h-44 flex items-center justify-center overflow-hidden">
+                      {(editingBadge.imageUrl.startsWith('data:application/pdf') || editingBadge.imageUrl.toLowerCase().includes('.pdf')) ? (
+                        <iframe src={`${editingBadge.imageUrl}#toolbar=0`} className="w-full h-full rounded-lg border-none" title="PDF Certificate Preview" />
+                      ) : (
+                        <img src={editingBadge.imageUrl} alt="Preview" className="max-h-full object-contain" />
+                      )}
                     </div>
                   )}
                 </div>

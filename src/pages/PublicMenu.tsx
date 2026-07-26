@@ -297,7 +297,13 @@ export default function PublicMenu() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: itemIndex * 0.05 }}
                       >
-                        <MenuCard item={item} isArabic={isArabic} vatEnabled={settings.vatEnabled} />
+                        <MenuCard 
+                          item={item} 
+                          isArabic={isArabic} 
+                          vatEnabled={settings.vatEnabled}
+                          vatIncludedInPrices={settings.vatIncludedInPrices}
+                          vatRate={settings.vatRate}
+                        />
                       </motion.div>
                     ))}
                   </div>

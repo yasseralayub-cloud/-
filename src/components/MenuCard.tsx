@@ -7,9 +7,25 @@ interface MenuCardProps {
   item: MenuItem;
   isArabic: boolean;
   vatEnabled?: boolean;
+  vatIncludedInPrices?: boolean;
+  vatRate?: number;
 }
 
-export default function MenuCard({ item, isArabic, vatEnabled = true }: MenuCardProps) {
+export default function MenuCard({ 
+  item, 
+  isArabic, 
+  vatEnabled = true, 
+  vatIncludedInPrices = true,
+  vatRate = 15 
+}: MenuCardProps) {
+  const itemPrice = Number(item.price) || 0;
+  const isExempt = !!item.isVatExempt;
+  const isIncludesVat = item.includesVat !== undefined ? item.includesVat : vatIncludedInPrices;
+
+  // Calculate VAT if applicable
+  const vatAmount = vatEnabled && !isExempt && !isIncludesVat ? itemPrice * (vatRate / 100) : 0;
+  const totalPriceWithVat = itemPrice + vatAmount;
+
   return (
     <motion.div
       layout
@@ -59,21 +75,34 @@ export default function MenuCard({ item, isArabic, vatEnabled = true }: MenuCard
           <div className="flex flex-col items-end">
             <div className="bg-dark text-yellow px-4 py-2 rounded-2xl flex items-center gap-1 shadow-md group-hover:scale-110 transition-transform duration-300">
               <span className="font-sans text-lg font-black leading-none">
-                {item.price}
+                {itemPrice.toLocaleString('ar-SA', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
               </span>
               <span className="text-[10px] opacity-70 font-bold uppercase tracking-tighter">
                 ر.س
               </span>
             </div>
+
+            {/* VAT Display Tag */}
             {vatEnabled && (
-              item.isVatExempt ? (
+              isExempt ? (
                 <span className="text-[9px] text-amber-700 bg-amber-50 font-bold mt-1 tracking-tighter px-2 py-0.5 rounded-full border border-amber-200/60">
                   {isArabic ? 'معفى من الضريبة' : 'VAT Exempt'}
                 </span>
-              ) : (
-                <span className="text-[9px] text-dark/40 font-bold mt-1 tracking-tighter">
-                  {isArabic ? 'شامل الضريبة' : 'VAT Incl.'}
+              ) : isIncludesVat ? (
+                <span className="text-[9px] text-emerald-700 bg-emerald-50 font-bold mt-1 tracking-tighter px-2 py-0.5 rounded-full border border-emerald-200/60">
+                  {isArabic ? 'السعر شامل الضريبة' : 'VAT Included'}
                 </span>
+              ) : (
+                <div className="flex flex-col items-end mt-1">
+                  <span className="text-[9px] text-rose-700 bg-rose-50 font-black tracking-tighter px-2 py-0.5 rounded-full border border-rose-200/60">
+                    {isArabic ? `لا يشمل الضريبة (+${vatRate}%)` : `Excl. VAT (+${vatRate}%)`}
+                  </span>
+                  <span className="text-[9px] text-dark/60 font-black mt-0.5">
+                    {isArabic 
+                      ? `الإجمالي مع الضريبة: ${totalPriceWithVat.toFixed(2)} ر.س` 
+                      : `Total with VAT: ${totalPriceWithVat.toFixed(2)} SAR`}
+                  </span>
+                </div>
               )
             )}
           </div>
