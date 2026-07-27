@@ -64,7 +64,7 @@ export default function MenuCard({
       )}
 
       {/* Image Section */}
-      <div className="relative h-56 overflow-hidden bg-neutral-100 group-hover:cursor-pointer">
+      <div className="relative h-44 sm:h-56 overflow-hidden bg-neutral-100 group-hover:cursor-pointer">
         {item.image ? (
           <img 
             src={item.image} 
@@ -80,57 +80,57 @@ export default function MenuCard({
       </div>
 
       {/* Content Section */}
-      <div className="p-6 flex flex-col flex-1">
-        <div className="flex justify-between items-start gap-4 mb-4">
-          <div className="flex-1">
-            <h3 className={`text-xl font-black text-dark group-hover:text-yellow transition-colors duration-300 leading-tight mb-1 ${isArabic ? 'font-sans' : 'font-serif tracking-tight'}`}>
+      <div className="p-4 sm:p-6 flex flex-col flex-1">
+        <div className="flex justify-between items-start gap-2.5 sm:gap-4 mb-3 sm:mb-4">
+          <div className="flex-1 min-w-0">
+            <h3 className={`text-base sm:text-xl font-black text-dark group-hover:text-yellow transition-colors duration-300 leading-snug mb-1 truncate ${isArabic ? 'font-sans' : 'font-serif tracking-tight'}`}>
               {isArabic ? item.nameAr : item.name}
             </h3>
-            <p className="text-dark/40 text-[10px] uppercase font-bold tracking-widest">
+            <p className="text-dark/40 text-[9px] sm:text-[10px] uppercase font-bold tracking-widest truncate">
               {item.category}
             </p>
           </div>
-          <div className="flex flex-col items-end gap-1.5">
+          <div className="flex flex-col items-end gap-1 shrink-0">
             {vatEnabled && !isExempt ? (
-              <div className="bg-dark text-yellow px-4 py-2.5 rounded-2xl flex flex-col items-end shadow-md group-hover:scale-105 transition-transform duration-300">
+              <div className="bg-dark text-yellow px-3 sm:px-4 py-1.5 sm:py-2.5 rounded-xl sm:rounded-2xl flex flex-col items-end shadow-md group-hover:scale-105 transition-transform duration-300">
                 {/* After Tax Price (السعر شامل الضريبة) */}
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] text-white/70 font-bold">
+                <div className="flex items-center gap-1 sm:gap-1.5">
+                  <span className="text-[9px] sm:text-[10px] text-white/70 font-bold whitespace-nowrap">
                     {isArabic ? 'شامل الضريبة:' : 'Incl. VAT:'}
                   </span>
-                  <span className="font-sans text-lg font-black leading-none text-yellow">
+                  <span className="font-sans text-sm sm:text-lg font-black leading-none text-yellow">
                     {formatPrice(priceWithVat)}
                   </span>
-                  <SarSymbol className="text-xs font-bold text-yellow" />
+                  <SarSymbol className="text-[10px] sm:text-xs font-bold text-yellow" />
                 </div>
                 {/* Before Tax Price (السعر قبل الضريبة) */}
-                <div className="flex items-center gap-1 border-t border-white/10 pt-1 mt-1 text-white/80 w-full justify-end">
-                  <span className="text-[9px] text-white/60 font-medium">
+                <div className="flex items-center gap-1 border-t border-white/10 pt-0.5 sm:pt-1 mt-0.5 sm:mt-1 text-white/80 w-full justify-end">
+                  <span className="text-[8px] sm:text-[9px] text-white/60 font-medium whitespace-nowrap">
                     {isArabic ? 'قبل الضريبة:' : 'Excl. VAT:'}
                   </span>
-                  <span className="font-sans text-xs font-bold text-white">
+                  <span className="font-sans text-[11px] sm:text-xs font-bold text-white">
                     {formatPrice(priceBeforeVat)}
                   </span>
-                  <SarSymbol className="text-[10px] font-bold text-white/70" />
+                  <SarSymbol className="text-[9px] sm:text-[10px] font-bold text-white/70" />
                 </div>
               </div>
             ) : (
-              <div className="bg-dark text-yellow px-4 py-2 rounded-2xl flex items-center gap-1 shadow-md group-hover:scale-105 transition-transform duration-300">
-                <span className="font-sans text-lg font-black leading-none">
+              <div className="bg-dark text-yellow px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl flex items-center gap-1 shadow-md group-hover:scale-105 transition-transform duration-300">
+                <span className="font-sans text-sm sm:text-lg font-black leading-none">
                   {formatPrice(itemPrice)}
                 </span>
-                <SarSymbol className="text-xs font-bold text-yellow" />
+                <SarSymbol className="text-[10px] sm:text-xs font-bold text-yellow" />
               </div>
             )}
 
             {/* VAT Display Tag */}
             {vatEnabled && (
               isExempt ? (
-                <span className="text-[9px] text-amber-700 bg-amber-50 font-bold tracking-tighter px-2.5 py-0.5 rounded-full border border-amber-200/60">
+                <span className="text-[8px] sm:text-[9px] text-amber-700 bg-amber-50 font-bold tracking-tighter px-2 sm:px-2.5 py-0.5 rounded-full border border-amber-200/60 whitespace-nowrap">
                   {isArabic ? 'معفى من الضريبة' : 'VAT Exempt'}
                 </span>
               ) : (
-                <span className="text-[9px] text-emerald-800 bg-emerald-50/90 font-bold tracking-tighter px-2.5 py-0.5 rounded-full border border-emerald-200/60">
+                <span className="text-[8px] sm:text-[9px] text-emerald-800 bg-emerald-50/90 font-bold tracking-tighter px-2 sm:px-2.5 py-0.5 rounded-full border border-emerald-200/60 whitespace-nowrap">
                   {isArabic 
                     ? `مبلغ الضريبة (${vatRate}%): ${formatPrice(calculatedVatAmount)} ﷼` 
                     : `VAT (${vatRate}%): ${formatPrice(calculatedVatAmount)} ﷼`}
@@ -140,7 +140,7 @@ export default function MenuCard({
           </div>
         </div>
         
-        <p className="text-dark/60 text-sm leading-relaxed mb-6 line-clamp-3 flex-1">
+        <p className="text-dark/60 text-xs sm:text-sm leading-relaxed mb-4 sm:mb-6 line-clamp-3 flex-1">
           {isArabic ? item.descriptionAr : item.description}
         </p>
 

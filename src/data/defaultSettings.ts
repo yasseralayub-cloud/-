@@ -163,5 +163,14 @@ export const defaultSiteSettings: SiteSettings = {
       subtitleAr: 'منصة التوثيق الموحدة للمنشآت التجارية',
       imageUrl: createSbcBadgeSvg(),
     }
-  ]
+  ],
+  socialLinks: {
+    phone: '966502163363',
+    whatsapp: '966502163363',
+    snapchat: 'https://snapchat.com/t/tVS6feFp',
+    snapchatQr: '/snapchat_qr.jpg',
+    googleMapsUrl: 'https://www.google.com/maps/dir/?api=1&destination=26.5148613,43.6442633',
+    workingHoursAr: 'يوميًا من 4:00 مساءً حتى 2:00 صباحًا',
+    workingHours: 'Daily 4:00 PM - 2:00 AM'
+  }
 };

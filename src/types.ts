@@ -30,6 +30,19 @@ export interface VerificationBadge {
   imageUrl: string;
 }
 
+export interface SocialMediaSettings {
+  phone?: string;
+  whatsapp?: string;
+  snapchat?: string; // username or URL e.g. luxcod or https://snapchat.com/add/...
+  snapchatQr?: string; // image path/URL for snapcode
+  instagram?: string;
+  tiktok?: string;
+  twitter?: string;
+  googleMapsUrl?: string;
+  workingHours?: string;
+  workingHoursAr?: string;
+}
+
 export interface SiteSettings {
   vatEnabled: boolean;
   vatRate: number; // e.g., 15
@@ -37,4 +50,5 @@ export interface SiteSettings {
   vatNumber?: string; // e.g., 310000000000003
   crNumber?: string; // e.g., 1010123456
   verificationBadges: VerificationBadge[];
+  socialLinks?: SocialMediaSettings;
 }

@@ -6,7 +6,8 @@ import { MenuItem, Category, SiteSettings, VerificationBadge } from '../types';
 import { defaultSiteSettings } from '../data/defaultSettings';
 import { resolveVerificationBadges } from '../lib/badgeUtils';
 import { convertPdfToJpeg } from '../lib/pdfUtils';
-import { Plus, Edit, Trash2, LogOut, Image, Save, X, Flame, Upload, Loader2, ChevronUp, ChevronDown, ListOrdered, ShieldCheck, Receipt, Utensils, RotateCcw } from 'lucide-react';
+import { Plus, Edit, Trash2, LogOut, Image, Save, X, Flame, Upload, Loader2, ChevronUp, ChevronDown, ListOrdered, ShieldCheck, Receipt, Utensils, RotateCcw, Share2, Phone, MessageCircle, MapPin, QrCode, Clock } from 'lucide-react';
+import { SnapchatIcon, InstagramIcon, TikTokIcon, TwitterIcon } from '../components/SocialIcons';
 import * as Icons from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
@@ -924,6 +925,220 @@ export default function AdminDashboard() {
                     className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-mono text-dark focus:outline-none focus:border-yellow"
                   />
                   <span className="text-[11px] text-dark/40 mt-1 block">رقم السجل التجاري الصادر للمطعم من وزارة التجارة</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Social Media & Contact Info Card */}
+            <div className="bg-white border border-black/5 rounded-[2.5rem] p-8 shadow-sm">
+              <div className="flex items-center gap-3 mb-6 pb-4 border-b border-black/5">
+                <div className="w-12 h-12 bg-amber-500/10 text-amber-600 rounded-2xl flex items-center justify-center">
+                  <Share2 size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-dark">حسابات التواصل الاجتماعي ومعلومات الاتصال</h3>
+                  <p className="text-xs text-dark/40">التحكم في حساب السناب شات، الواتساب، رقم التواصل، خرائط جوجل وساعات العمل</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Phone */}
+                <div className="bg-neutral-50 p-5 rounded-2xl border border-black/5">
+                  <label className="flex items-center gap-2 font-black text-dark text-xs uppercase tracking-wider mb-2">
+                    <Phone size={16} className="text-amber-600" />
+                    <span>رقم الهاتف / الاتصال المباشر</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={siteSettings.socialLinks?.phone || ''}
+                    onChange={(e) => setSiteSettings(prev => ({
+                      ...prev,
+                      socialLinks: { ...prev.socialLinks, phone: e.target.value }
+                    }))}
+                    placeholder="مثال: 0502163363"
+                    className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-mono text-dark focus:outline-none focus:border-yellow"
+                  />
+                </div>
+
+                {/* WhatsApp */}
+                <div className="bg-neutral-50 p-5 rounded-2xl border border-black/5">
+                  <label className="flex items-center gap-2 font-black text-dark text-xs uppercase tracking-wider mb-2">
+                    <MessageCircle size={16} className="text-emerald-600" />
+                    <span>رقم الواتساب (مع رمز الدولة)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={siteSettings.socialLinks?.whatsapp || ''}
+                    onChange={(e) => setSiteSettings(prev => ({
+                      ...prev,
+                      socialLinks: { ...prev.socialLinks, whatsapp: e.target.value }
+                    }))}
+                    placeholder="مثال: 966502163363"
+                    className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-mono text-dark focus:outline-none focus:border-yellow"
+                  />
+                </div>
+
+                {/* Snapchat Username */}
+                <div className="bg-neutral-50 p-5 rounded-2xl border border-black/5">
+                  <label className="flex items-center gap-2 font-black text-dark text-xs uppercase tracking-wider mb-2">
+                    <SnapchatIcon className="w-4 h-4 text-amber-500 fill-amber-500" />
+                    <span>حساب السناب شات (اسم المستخدم)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={siteSettings.socialLinks?.snapchat || ''}
+                    onChange={(e) => setSiteSettings(prev => ({
+                      ...prev,
+                      socialLinks: { ...prev.socialLinks, snapchat: e.target.value }
+                    }))}
+                    placeholder="مثال: bbq_trip"
+                    className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-mono text-dark focus:outline-none focus:border-yellow"
+                  />
+                </div>
+
+                {/* Snapchat QR Code Image */}
+                <div className="bg-neutral-50 p-5 rounded-2xl border border-black/5 md:col-span-2">
+                  <label className="flex items-center gap-2 font-black text-dark text-xs uppercase tracking-wider mb-2">
+                    <QrCode size={16} className="text-amber-500" />
+                    <span>رمز كود السناب شات (Snapcode Image)</span>
+                  </label>
+                  <div className="flex flex-col sm:flex-row gap-4 items-center">
+                    <div className="relative w-28 h-28 bg-[#FFFC00] border-2 border-yellow rounded-2xl overflow-hidden p-2 flex items-center justify-center shrink-0 shadow-md">
+                      <img
+                        src={siteSettings.socialLinks?.snapchatQr || '/snapchat_qr.jpg'}
+                        alt="Snapchat QR Code"
+                        className="w-full h-full object-contain rounded-xl"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = '/snapchat_qr.jpg';
+                        }}
+                      />
+                    </div>
+                    <div className="flex-1 w-full space-y-3">
+                      <input
+                        type="text"
+                        value={siteSettings.socialLinks?.snapchatQr || ''}
+                        onChange={(e) => setSiteSettings(prev => ({
+                          ...prev,
+                          socialLinks: { ...prev.socialLinks, snapchatQr: e.target.value }
+                        }))}
+                        placeholder="رابط الصورة أو مسار الملف (مثال: /snapchat_qr.jpg)"
+                        className="w-full bg-white border border-black/10 rounded-xl px-4 py-2.5 font-mono text-xs text-dark focus:outline-none focus:border-yellow"
+                      />
+                      <label className="inline-flex items-center gap-2 bg-yellow hover:bg-yellow/80 text-black font-bold px-4 py-2 rounded-xl text-xs cursor-pointer shadow-sm transition-all">
+                        <Upload size={14} />
+                        <span>رفع صورة / كود سناب جديد</span>
+                        <input
+                          type="file"
+                          accept="image/*,.pdf"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              try {
+                                const dataUrl = await processImageFile(file, 600, 600, 0.8);
+                                setSiteSettings(prev => ({
+                                  ...prev,
+                                  socialLinks: { ...prev.socialLinks, snapchatQr: dataUrl }
+                                }));
+                              } catch (err) {
+                                console.error("Snapchat QR image upload error:", err);
+                              }
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Instagram */}
+                <div className="bg-neutral-50 p-5 rounded-2xl border border-black/5">
+                  <label className="flex items-center gap-2 font-black text-dark text-xs uppercase tracking-wider mb-2">
+                    <InstagramIcon className="w-4 h-4 text-pink-600" />
+                    <span>حساب إنستغرام (اسم المستخدم أو الرابط)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={siteSettings.socialLinks?.instagram || ''}
+                    onChange={(e) => setSiteSettings(prev => ({
+                      ...prev,
+                      socialLinks: { ...prev.socialLinks, instagram: e.target.value }
+                    }))}
+                    placeholder="مثال: bbq_trip"
+                    className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-mono text-dark focus:outline-none focus:border-yellow"
+                  />
+                </div>
+
+                {/* TikTok */}
+                <div className="bg-neutral-50 p-5 rounded-2xl border border-black/5">
+                  <label className="flex items-center gap-2 font-black text-dark text-xs uppercase tracking-wider mb-2">
+                    <TikTokIcon className="w-4 h-4 text-black" />
+                    <span>حساب تيك توك (اسم المستخدم أو الرابط)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={siteSettings.socialLinks?.tiktok || ''}
+                    onChange={(e) => setSiteSettings(prev => ({
+                      ...prev,
+                      socialLinks: { ...prev.socialLinks, tiktok: e.target.value }
+                    }))}
+                    placeholder="مثال: bbq_trip"
+                    className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-mono text-dark focus:outline-none focus:border-yellow"
+                  />
+                </div>
+
+                {/* Twitter / X */}
+                <div className="bg-neutral-50 p-5 rounded-2xl border border-black/5">
+                  <label className="flex items-center gap-2 font-black text-dark text-xs uppercase tracking-wider mb-2">
+                    <TwitterIcon className="w-4 h-4 text-sky-600" />
+                    <span>حساب تويتر / منصة X</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={siteSettings.socialLinks?.twitter || ''}
+                    onChange={(e) => setSiteSettings(prev => ({
+                      ...prev,
+                      socialLinks: { ...prev.socialLinks, twitter: e.target.value }
+                    }))}
+                    placeholder="مثال: bbq_trip"
+                    className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-mono text-dark focus:outline-none focus:border-yellow"
+                  />
+                </div>
+
+                {/* Google Maps URL */}
+                <div className="bg-neutral-50 p-5 rounded-2xl border border-black/5">
+                  <label className="flex items-center gap-2 font-black text-dark text-xs uppercase tracking-wider mb-2">
+                    <MapPin size={16} className="text-red-500" />
+                    <span>رابط موقع المطعم (خرائط جوجل)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={siteSettings.socialLinks?.googleMapsUrl || ''}
+                    onChange={(e) => setSiteSettings(prev => ({
+                      ...prev,
+                      socialLinks: { ...prev.socialLinks, googleMapsUrl: e.target.value }
+                    }))}
+                    placeholder="https://maps.google.com/..."
+                    className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-mono text-xs text-dark focus:outline-none focus:border-yellow"
+                  />
+                </div>
+
+                {/* Working Hours */}
+                <div className="bg-neutral-50 p-5 rounded-2xl border border-black/5 md:col-span-2">
+                  <label className="flex items-center gap-2 font-black text-dark text-xs uppercase tracking-wider mb-2">
+                    <Clock size={16} className="text-amber-600" />
+                    <span>أوقات وساعات العمل (بالعربية)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={siteSettings.socialLinks?.workingHoursAr || ''}
+                    onChange={(e) => setSiteSettings(prev => ({
+                      ...prev,
+                      socialLinks: { ...prev.socialLinks, workingHoursAr: e.target.value }
+                    }))}
+                    placeholder="مثال: يوميًا من 4:00 مساءً حتى 2:00 صباحًا"
+                    className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 text-dark focus:outline-none focus:border-yellow"
+                  />
                 </div>
               </div>
             </div>

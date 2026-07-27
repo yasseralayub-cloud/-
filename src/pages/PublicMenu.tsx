@@ -5,6 +5,9 @@ import MenuHeader from '../components/MenuHeader';
 import CategoryFilter from '../components/CategoryFilter';
 import MenuCard from '../components/MenuCard';
 import VerificationCarousel from '../components/VerificationCarousel';
+import { LuxcodCredit } from '../components/LuxcodCredit';
+import { SnapchatModal } from '../components/SnapchatModal';
+import { SnapchatIcon, InstagramIcon, TikTokIcon, TwitterIcon } from '../components/SocialIcons';
 import { MenuItem, Category, SiteSettings, VerificationBadge } from '../types';
 import { resolveVerificationBadges } from '../lib/badgeUtils';
 import { db } from '../lib/firebase';
@@ -22,6 +25,7 @@ export default function PublicMenu() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSnapchatModalOpen, setIsSnapchatModalOpen] = useState(false);
 
   useEffect(() => {
     // Fetch categories
@@ -155,6 +159,8 @@ export default function PublicMenu() {
       <MenuHeader 
         isArabic={isArabic} 
         onLanguageToggle={() => setIsArabic(!isArabic)} 
+        socialLinks={settings.socialLinks}
+        onOpenSnapchat={() => setIsSnapchatModalOpen(true)}
       />
 
       {/* Hero Section */}
@@ -175,11 +181,8 @@ export default function PublicMenu() {
                 <>A Journey of <span className="text-yellow">Flavors</span></>
               )}
             </h1>
-            <p className="text-white/40 text-lg mb-10 max-w-lg leading-relaxed">
-              {isArabic 
-                ? 'نقدم لكم أفضل قطع اللحم والدجاج المختارة بعناية والمشوية على لهب الفحم الطبيعي لتستمتعوا بطعم لا يُنسى.'
-                : 'We offer the best carefully selected pieces of meat and chicken grilled over natural charcoal flames for an unforgettable taste.'}
-            </p>
+            {/* Luxcod Credit Button in Hero */}
+            <LuxcodCredit variant="hero" isArabic={isArabic} />
             <div className="flex flex-wrap gap-4">
               <button 
                 onClick={() => document.getElementById('menu-start')?.scrollIntoView({ behavior: 'smooth' })}
@@ -220,17 +223,21 @@ export default function PublicMenu() {
 
         {/* VAT Notice Banner */}
         {settings.vatEnabled && (
-          <div className="flex justify-center mb-8">
-            <div className="inline-flex items-center gap-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 px-5 py-2.5 rounded-full text-xs font-bold shadow-xs">
-              <span>
-                {isArabic 
-                  ? `يتم عرض الأسعار قبل وبعد ضريبة القيمة المضافة (${settings.vatRate || 15}%)` 
-                  : `Prices are displayed before and after ${settings.vatRate || 15}% VAT`}
-              </span>
-              {settings.vatNumber && (
-                <span className="hidden sm:inline border-r border-emerald-500/30 pr-2 mr-1">
-                  {isArabic ? 'رقم الضريبة:' : 'VAT:'} {settings.vatNumber}
+          <div className="flex justify-center mb-8 px-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-900 px-4 sm:px-6 py-3 rounded-2xl text-xs font-bold text-center shadow-xs w-full sm:w-auto max-w-lg">
+              <div className="flex items-center gap-2 justify-center">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                <span>
+                  {isArabic 
+                    ? `يتم عرض الأسعار قبل وبعد ضريبة القيمة المضافة (${settings.vatRate || 15}%)` 
+                    : `Prices displayed before & after ${settings.vatRate || 15}% VAT`}
                 </span>
+              </div>
+              {settings.vatNumber && (
+                <div className="bg-emerald-600/15 text-emerald-950 px-3 py-1 rounded-xl border border-emerald-500/30 text-[11px] sm:text-xs font-mono font-bold flex items-center justify-center gap-1.5 shrink-0">
+                  <span className="text-emerald-900">{isArabic ? 'الرقم الضريبي:' : 'VAT Registration:'}</span>
+                  <span className="text-emerald-950 font-extrabold tracking-wider underline underline-offset-2 decoration-emerald-500">{settings.vatNumber}</span>
+                </div>
               )}
             </div>
           </div>
@@ -448,20 +455,135 @@ export default function PublicMenu() {
 
       {/* Footer social icons and info */}
       <footer className="mt-24 py-16 border-t border-black/5 bg-black text-center text-white">
-        <div className="max-w-xl mx-auto px-6">
-          <h2 className="font-sans text-3xl mb-4 font-black text-yellow uppercase">رحلة شواء</h2>
-          <p className="text-white/60 text-sm mb-6 leading-relaxed">
+        <div className="max-w-2xl mx-auto px-6">
+          <h2 className="font-sans text-3xl sm:text-4xl mb-3 font-black text-yellow uppercase">رحلة شواء</h2>
+          <p className="text-white/60 text-xs sm:text-sm mb-8 leading-relaxed max-w-lg mx-auto">
             {isArabic 
               ? 'نقدم لكم أجود أنواع اللحوم والدواجن المشوية على الفحم، مع شاورما مميزة وتتبيلة سرية تأخذكم في رحلة من النكهات.' 
               : 'We offer the finest types of meat and poultry grilled on charcoal, with a distinctive shawarma and a secret seasoning that takes you on a journey of flavors.'}
           </p>
-          
+
+          {/* Snapchat Highlight Card */}
+          <div className="mb-10 bg-neutral-900 border border-yellow/30 p-6 sm:p-8 rounded-[2rem] shadow-2xl relative overflow-hidden text-center">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#FFFC00]/10 rounded-full blur-2xl pointer-events-none" />
+            
+            <div className="inline-flex items-center gap-2 bg-[#FFFC00] text-black px-4 py-1.5 rounded-full text-xs font-black shadow-lg mb-3">
+              <SnapchatIcon className="w-4 h-4 fill-black" />
+              <span>Snapchat</span>
+            </div>
+
+            <h3 className="text-xl sm:text-2xl font-black text-yellow mb-2">
+              {isArabic ? 'تواصل معنا واشترك في سناب شات' : 'Connect with us on Snapchat'}
+            </h3>
+            <p className="text-white/60 text-xs mb-6 max-w-md mx-auto leading-relaxed">
+              {isArabic 
+                ? 'شاهد العروض اليومية وكواليس إعداد أشهى المشويات والشاورما أولاً بأول على حسابنا الرسمّي' 
+                : 'Follow our daily stories and behind-the-scenes charcoal grilling on Snapchat'}
+            </p>
+
+            {/* Snapchat Snapcode Trigger */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-xs sm:max-w-md mx-auto">
+              <button
+                onClick={() => setIsSnapchatModalOpen(true)}
+                className="w-full bg-[#FFFC00] hover:bg-[#e6e300] text-black font-black py-3.5 px-6 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl hover:scale-105 active:scale-95 cursor-pointer text-sm"
+              >
+                <SnapchatIcon className="w-5 h-5 fill-black" />
+                <span>{isArabic ? 'عرض كود السناب شات (Snapcode)' : 'View Snapchat QR Code'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Direct Phone Call */}
           <div className="mb-8 space-y-2">
-            <a href="tel:0502163363" className="block text-2xl font-bold text-yellow hover:scale-105 transition-transform">0502163363</a>
+            <a 
+              href={`tel:${settings.socialLinks?.phone || '0502163363'}`} 
+              className="inline-block text-2xl sm:text-3xl font-black text-yellow hover:scale-105 transition-transform dir-ltr font-mono"
+            >
+              {settings.socialLinks?.phone || '0502163363'}
+            </a>
             <p className="text-xs text-white/40 uppercase tracking-widest">
               {isArabic ? 'اتصل بنا للحجز والطلبات' : 'Call us for reservations & orders'}
             </p>
           </div>
+
+          {/* Social Links Badge Buttons */}
+          <div className="flex flex-wrap justify-center items-center gap-3 mb-8">
+            {settings.socialLinks?.snapchat && (
+              <a
+                href={settings.socialLinks.snapchat.startsWith('http') ? settings.socialLinks.snapchat : `https://snapchat.com/add/${settings.socialLinks.snapchat.replace('@', '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 bg-[#FFFC00]/10 hover:bg-[#FFFC00]/20 border border-[#FFFC00]/30 text-yellow px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer"
+              >
+                <SnapchatIcon className="w-4 h-4 fill-yellow" />
+                <span>Snapchat</span>
+              </a>
+            )}
+
+            {settings.socialLinks?.whatsapp && (
+              <a
+                href={`https://wa.me/${settings.socialLinks.whatsapp.replace('+', '').trim()}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 bg-[#25D366]/10 hover:bg-[#25D366]/20 border border-[#25D366]/30 text-[#25D366] px-4 py-2 rounded-full text-xs font-bold transition-all"
+              >
+                <span>WhatsApp</span>
+              </a>
+            )}
+
+            {settings.socialLinks?.instagram && (
+              <a
+                href={settings.socialLinks.instagram.startsWith('http') ? settings.socialLinks.instagram : `https://instagram.com/${settings.socialLinks.instagram.replace('@', '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 bg-pink-500/10 hover:bg-pink-500/20 border border-pink-500/30 text-pink-400 px-4 py-2 rounded-full text-xs font-bold transition-all"
+              >
+                <InstagramIcon className="w-4 h-4" />
+                <span>Instagram</span>
+              </a>
+            )}
+
+            {settings.socialLinks?.tiktok && (
+              <a
+                href={settings.socialLinks.tiktok.startsWith('http') ? settings.socialLinks.tiktok : `https://tiktok.com/@${settings.socialLinks.tiktok.replace('@', '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/30 text-white px-4 py-2 rounded-full text-xs font-bold transition-all"
+              >
+                <TikTokIcon className="w-4 h-4" />
+                <span>TikTok</span>
+              </a>
+            )}
+
+            {settings.socialLinks?.twitter && (
+              <a
+                href={settings.socialLinks.twitter.startsWith('http') ? settings.socialLinks.twitter : `https://x.com/${settings.socialLinks.twitter.replace('@', '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 text-sky-400 px-4 py-2 rounded-full text-xs font-bold transition-all"
+              >
+                <TwitterIcon className="w-4 h-4" />
+                <span>X (Twitter)</span>
+              </a>
+            )}
+
+            <a
+              href={settings.socialLinks?.googleMapsUrl || "https://www.google.com/maps/dir/?api=1&destination=26.5148613,43.6442633"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 bg-yellow/10 hover:bg-yellow/20 border border-yellow/30 text-yellow px-4 py-2 rounded-full text-xs font-bold transition-all"
+            >
+              <MapPin size={16} />
+              <span>{isArabic ? 'الموقع على الخريطة' : 'Location Map'}</span>
+            </a>
+          </div>
+
+          {settings.socialLinks?.workingHoursAr && (
+            <div className="mb-8 text-xs text-white/70 bg-white/5 py-2.5 px-5 rounded-2xl inline-block border border-white/10 font-medium">
+              <span className="text-yellow font-bold me-1.5">{isArabic ? 'ساعات العمل:' : 'Working Hours:'}</span>
+              <span>{isArabic ? settings.socialLinks.workingHoursAr : (settings.socialLinks.workingHours || settings.socialLinks.workingHoursAr)}</span>
+            </div>
+          )}
 
           {(settings.vatNumber || settings.crNumber) && (
             <div className="mb-8 pt-6 border-t border-white/10 flex flex-wrap justify-center gap-4 text-xs text-white/50">
@@ -474,12 +596,19 @@ export default function PublicMenu() {
             </div>
           )}
 
-          <div className="flex justify-center gap-6 text-yellow font-bold text-xs tracking-widest uppercase">
-            <a href="https://wa.me/966502163363" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">WhatsApp</a>
-            <a href="https://www.google.com/maps/dir/?api=1&destination=26.5148613,43.6442633" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">{isArabic ? 'الموقع' : 'Location'}</a>
-          </div>
+          {/* Luxcod Credit Button */}
+          <LuxcodCredit isArabic={isArabic} />
         </div>
       </footer>
+
+      {/* Snapchat Modal */}
+      <SnapchatModal
+        isOpen={isSnapchatModalOpen}
+        onClose={() => setIsSnapchatModalOpen(false)}
+        username={settings.socialLinks?.snapchat || 'bbq_trip'}
+        qrCodeUrl={settings.socialLinks?.snapchatQr || '/snapchat_qr.jpg'}
+        isArabic={isArabic}
+      />
 
     </div>
   );
