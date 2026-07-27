@@ -1235,33 +1235,33 @@ export default function AdminDashboard() {
       {/* Item Modal */}
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsModalOpen(false)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
             />
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden"
+              className="relative bg-white w-full max-w-2xl rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden my-auto max-h-[90vh] flex flex-col z-10"
             >
-              <div className="bg-black text-white p-8 flex justify-between items-center">
-                <h3 className="text-2xl font-black uppercase tracking-tight">
-                  {editingItem?.id ? 'تعديل صنف' : 'إضافة صنف جديد'}
+              <div className="bg-black text-white p-6 sm:p-8 flex justify-between items-center shrink-0 border-b border-white/10">
+                <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tight">
+                  {editingItem?.id ? (isArabic ? 'تعديل صنف' : 'Edit Item') : (isArabic ? 'إضافة صنف جديد' : 'Add New Item')}
                 </h3>
                 <button 
                   onClick={() => setIsModalOpen(false)}
-                  className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-colors"
+                  className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-colors cursor-pointer"
                 >
                   <X size={20} />
                 </button>
               </div>
 
-              <form onSubmit={handleSaveItem} className="p-8 space-y-6">
+              <form onSubmit={handleSaveItem} className="p-6 sm:p-8 space-y-6 overflow-y-auto flex-1 custom-scrollbar">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Arabic Info */}
                   <div className="space-y-4">
@@ -1355,8 +1355,8 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="space-y-4">
-                  <div className="flex flex-col md:flex-row gap-6">
-                    <div className="flex-1 space-y-4">
+                  <div className="flex flex-col md:flex-row gap-6 items-center">
+                    <div className="flex-1 w-full space-y-4">
                       {/* Upload Option */}
                       <div>
                         <span className="text-xs font-black uppercase text-dark/40 tracking-widest block mb-2">
@@ -1409,7 +1409,7 @@ export default function AdminDashboard() {
                     </div>
 
                     {(editingItem?.image || uploadProgress !== null) && (
-                      <div className="w-40 h-40 bg-neutral-100 rounded-2xl overflow-hidden border-2 border-yellow/20 flex-shrink-0 relative">
+                      <div className="w-full md:w-40 h-40 bg-neutral-100 rounded-2xl overflow-hidden border-2 border-yellow/20 flex-shrink-0 relative">
                         {editingItem?.image ? (
                           <img 
                             src={editingItem.image} 
@@ -1501,7 +1501,7 @@ export default function AdminDashboard() {
                 <div className="pt-6 flex gap-4">
                   <button 
                     type="submit"
-                    className="flex-1 bg-black text-yellow font-black py-5 rounded-2xl hover:scale-105 transition-transform flex items-center justify-center gap-3 shadow-2xl"
+                    className="flex-1 bg-black text-yellow font-black py-4 sm:py-5 rounded-2xl hover:scale-102 transition-transform flex items-center justify-center gap-3 shadow-2xl cursor-pointer"
                   >
                     <Save size={20} />
                     <span>حفظ الصنف</span>
@@ -1509,7 +1509,7 @@ export default function AdminDashboard() {
                   <button 
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="flex-1 bg-neutral-100 hover:bg-neutral-200 text-dark font-bold py-5 rounded-2xl transition-colors"
+                    className="flex-1 bg-neutral-100 hover:bg-neutral-200 text-dark font-bold py-4 sm:py-5 rounded-2xl transition-colors cursor-pointer"
                   >
                     إلغاء
                   </button>
@@ -1523,15 +1523,25 @@ export default function AdminDashboard() {
       {/* Category Reorder Modal */}
       <AnimatePresence>
         {isCategoryReorderModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setIsCategoryReorderModalOpen(false);
+                setEditingCategory(null);
+              }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            />
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden"
+              className="relative bg-white w-full max-w-2xl rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden my-auto max-h-[90vh] flex flex-col z-10"
             >
-              <div className="bg-black text-white p-8 flex justify-between items-center bg-zinc-950">
-                <h3 className="text-2xl font-black uppercase tracking-tight">
+              <div className="bg-black text-white p-6 sm:p-8 flex justify-between items-center bg-zinc-950 shrink-0 border-b border-white/10">
+                <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tight">
                   {isArabic ? 'إدارة أقسام المنيو' : 'Manage Categories'}
                 </h3>
                 <button 
@@ -1539,13 +1549,13 @@ export default function AdminDashboard() {
                     setIsCategoryReorderModalOpen(false);
                     setEditingCategory(null);
                   }}
-                  className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-colors"
+                  className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-colors cursor-pointer"
                 >
                   <X size={20} />
                 </button>
               </div>
 
-              <div className="p-8">
+              <div className="p-6 sm:p-8 overflow-y-auto flex-1 custom-scrollbar">
                 {editingCategory ? (
                   /* Form to Add or Edit Category */
                   <form onSubmit={handleSaveCategory} className="space-y-6">
