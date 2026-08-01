@@ -5,7 +5,7 @@ import MenuHeader from '../components/MenuHeader';
 import CategoryFilter from '../components/CategoryFilter';
 import MenuCard from '../components/MenuCard';
 import VerificationCarousel from '../components/VerificationCarousel';
-import { LuxcodCredit } from '../components/LuxcodCredit';
+import GreetingSplash from '../components/GreetingSplash';
 import { SnapchatModal } from '../components/SnapchatModal';
 import { SnapchatIcon, InstagramIcon, TikTokIcon, TwitterIcon } from '../components/SocialIcons';
 import { MenuItem, Category, SiteSettings, VerificationBadge } from '../types';
@@ -26,6 +26,7 @@ export default function PublicMenu() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSnapchatModalOpen, setIsSnapchatModalOpen] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
     // Fetch categories
@@ -142,20 +143,15 @@ export default function PublicMenu() {
     return cats.filter(c => c.id === selectedCategory);
   }, [activeCategories, selectedCategory]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <motion.div 
-          animate={{ rotate: 360 }}
-          transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-          className="w-12 h-12 border-4 border-yellow border-t-transparent rounded-full"
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-neutral-50 pb-20" dir={isArabic ? 'rtl' : 'ltr'}>
+      {showSplash && (
+        <GreetingSplash
+          isArabic={isArabic}
+          onComplete={() => setShowSplash(false)}
+        />
+      )}
+
       <MenuHeader 
         isArabic={isArabic} 
         onLanguageToggle={() => setIsArabic(!isArabic)} 
@@ -181,8 +177,6 @@ export default function PublicMenu() {
                 <>A Journey of <span className="text-yellow">Flavors</span></>
               )}
             </h1>
-            {/* Luxcod Credit Button in Hero */}
-            <LuxcodCredit variant="hero" isArabic={isArabic} />
             <div className="flex flex-wrap gap-4">
               <button 
                 onClick={() => document.getElementById('menu-start')?.scrollIntoView({ behavior: 'smooth' })}
@@ -463,36 +457,6 @@ export default function PublicMenu() {
               : 'We offer the finest types of meat and poultry grilled on charcoal, with a distinctive shawarma and a secret seasoning that takes you on a journey of flavors.'}
           </p>
 
-          {/* Snapchat Highlight Card */}
-          <div className="mb-10 bg-neutral-900 border border-yellow/30 p-6 sm:p-8 rounded-[2rem] shadow-2xl relative overflow-hidden text-center">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[#FFFC00]/10 rounded-full blur-2xl pointer-events-none" />
-            
-            <div className="inline-flex items-center gap-2 bg-[#FFFC00] text-black px-4 py-1.5 rounded-full text-xs font-black shadow-lg mb-3">
-              <SnapchatIcon className="w-4 h-4 fill-black" />
-              <span>Snapchat</span>
-            </div>
-
-            <h3 className="text-xl sm:text-2xl font-black text-yellow mb-2">
-              {isArabic ? 'تواصل معنا واشترك في سناب شات' : 'Connect with us on Snapchat'}
-            </h3>
-            <p className="text-white/60 text-xs mb-6 max-w-md mx-auto leading-relaxed">
-              {isArabic 
-                ? 'شاهد العروض اليومية وكواليس إعداد أشهى المشويات والشاورما أولاً بأول على حسابنا الرسمّي' 
-                : 'Follow our daily stories and behind-the-scenes charcoal grilling on Snapchat'}
-            </p>
-
-            {/* Snapchat Snapcode Trigger */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-xs sm:max-w-md mx-auto">
-              <button
-                onClick={() => setIsSnapchatModalOpen(true)}
-                className="w-full bg-[#FFFC00] hover:bg-[#e6e300] text-black font-black py-3.5 px-6 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl hover:scale-105 active:scale-95 cursor-pointer text-sm"
-              >
-                <SnapchatIcon className="w-5 h-5 fill-black" />
-                <span>{isArabic ? 'عرض كود السناب شات (Snapcode)' : 'View Snapchat QR Code'}</span>
-              </button>
-            </div>
-          </div>
-
           {/* Direct Phone Call */}
           <div className="mb-8 space-y-2">
             <a 
@@ -596,8 +560,6 @@ export default function PublicMenu() {
             </div>
           )}
 
-          {/* Luxcod Credit Button */}
-          <LuxcodCredit isArabic={isArabic} />
         </div>
       </footer>
 
