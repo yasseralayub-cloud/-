@@ -6,16 +6,17 @@ import { MenuItem, Category, SiteSettings, VerificationBadge } from '../types';
 import { defaultSiteSettings } from '../data/defaultSettings';
 import { resolveVerificationBadges } from '../lib/badgeUtils';
 import { convertPdfToJpeg } from '../lib/pdfUtils';
-import { Plus, Edit, Trash2, LogOut, Image, Save, X, Flame, Upload, Loader2, ChevronUp, ChevronDown, ListOrdered, ShieldCheck, Receipt, Utensils, RotateCcw, Share2, Phone, MessageCircle, MapPin, QrCode, Clock } from 'lucide-react';
+import { Plus, Edit, Trash2, LogOut, Image, Save, X, Flame, Upload, Loader2, ChevronUp, ChevronDown, ListOrdered, ShieldCheck, Receipt, Utensils, RotateCcw, Share2, Phone, MessageCircle, MapPin, QrCode, Clock, Sparkles } from 'lucide-react';
 import { SnapchatIcon, InstagramIcon, TikTokIcon, TwitterIcon } from '../components/SocialIcons';
 import * as Icons from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
+import AdminOffersTab from '../components/AdminOffersTab';
 
 import { migrateData } from '../lib/migrate';
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'items' | 'settings'>('items');
+  const [activeTab, setActiveTab] = useState<'items' | 'offers' | 'settings'>('items');
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(defaultSiteSettings);
@@ -74,6 +75,15 @@ export default function AdminDashboard() {
     const catsUnsub = onSnapshot(collection(db, 'categories'), (snapshot) => {
       const cats = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Category));
       setCategories([...cats].sort((a, b) => (a.order || 0) - (b.order || 0)));
+      if (cats.length > 0 && !cats.some(c => c.id === 'new')) {
+        setDoc(doc(db, 'categories', 'new'), {
+          id: 'new',
+          label: "What's New",
+          labelAr: 'جديدنا',
+          icon: 'Sparkles',
+          order: 1
+        }, { merge: true }).catch(() => {});
+      }
     });
 
     const itemsUnsub = onSnapshot(collection(db, 'menuItems'), (snapshot) => {
@@ -375,6 +385,46 @@ export default function AdminDashboard() {
     }
   };
 
+  const ensureNewCategoryExists = async () => {
+    const hasNew = categories.some(c => c.id === 'new');
+    if (!hasNew) {
+      const newCat: Category = {
+        id: 'new',
+        label: "What's New",
+        labelAr: 'جديدنا',
+        icon: 'Sparkles',
+        order: 1
+      };
+      try {
+        await setDoc(doc(db, 'categories', 'new'), newCat, { merge: true });
+      } catch (e) {
+        console.error("Error ensuring 'new' category exists:", e);
+      }
+    }
+  };
+
+  const handleToggleNewCategory = async (item: MenuItem) => {
+    try {
+      await ensureNewCategoryExists();
+      const isCurrentlyNew = item.category === 'new';
+      const fallbackCat = categories.find(c => c.id !== 'new' && c.id !== 'all')?.id || 'main';
+      const targetCategory = isCurrentlyNew ? fallbackCat : 'new';
+      
+      await updateDoc(doc(db, 'menuItems', item.id), {
+        category: targetCategory
+      });
+      
+      alert(
+        isArabic
+          ? (isCurrentlyNew ? 'تمت إعادة الصنف من قائمة جديدنا بنجاح!' : 'تم تحويل الصنف إلى قائمة "جديدنا" بنجاح!')
+          : (isCurrentlyNew ? 'Item removed from What\'s New list!' : 'Item transferred to "What\'s New" list successfully!')
+      );
+    } catch (err: any) {
+      console.error("Error updating item category:", err);
+      alert(isArabic ? `حدث خطأ أثناء تحويل الصنف: ${err?.message || ''}` : `Error updating item category: ${err?.message || ''}`);
+    }
+  };
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -567,6 +617,18 @@ export default function AdminDashboard() {
         </button>
 
         <button
+          onClick={() => setActiveTab('offers')}
+          className={`px-6 py-2.5 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
+            activeTab === 'offers' 
+              ? 'bg-yellow text-black font-black shadow-lg' 
+              : 'text-white/60 hover:text-white hover:bg-white/10'
+          }`}
+        >
+          <Flame size={18} className={activeTab === 'offers' ? 'fill-black' : ''} />
+          <span>{isArabic ? 'قسم العروض' : 'Promotional Offers'}</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('settings')}
           className={`px-6 py-2.5 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
             activeTab === 'settings' 
@@ -580,7 +642,7 @@ export default function AdminDashboard() {
       </div>
 
       <main className="max-w-7xl mx-auto p-8">
-        {activeTab === 'items' ? (
+        {activeTab === 'items' && (
           <>
             <div className="flex justify-between items-center mb-10">
               <div>
@@ -753,33 +815,53 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <div className="mt-auto pt-6 border-t border-black/5 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-yellow" />
-                    <span className="text-[10px] font-black text-dark/30 uppercase tracking-widest">
-                      {categories.find(c => c.id === item.category)?.labelAr || item.category}
+                <div className="mt-auto pt-5 border-t border-black/5 flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${item.category === 'new' ? 'bg-emerald-500' : 'bg-yellow'}`} />
+                      <span className={`text-[10px] font-black uppercase tracking-widest ${item.category === 'new' ? 'text-emerald-700 font-extrabold' : 'text-dark/40'}`}>
+                        {item.category === 'new' 
+                          ? (isArabic ? 'جديدنا' : "What's New")
+                          : (categories.find(c => c.id === item.category)?.labelAr || item.category)}
+                      </span>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => {
+                          setEditingItem(item);
+                          setIsModalOpen(true);
+                        }}
+                        className="w-10 h-10 bg-neutral-100 hover:bg-black hover:text-yellow text-dark rounded-xl transition-all flex items-center justify-center group/btn cursor-pointer"
+                        title={isArabic ? 'تعديل' : 'Edit'}
+                      >
+                        <Edit size={18} />
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteItem(item.id)}
+                        className="w-10 h-10 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-xl transition-all flex items-center justify-center group/btn cursor-pointer"
+                        title={isArabic ? 'حذف' : 'Delete'}
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Quick Convert Button to "جديدنا" */}
+                  <button
+                    onClick={() => handleToggleNewCategory(item)}
+                    className={`w-full py-2.5 px-4 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                      item.category === 'new'
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
+                        : 'bg-neutral-100 hover:bg-black hover:text-yellow text-dark border border-black/5'
+                    }`}
+                  >
+                    <span>
+                      {item.category === 'new'
+                        ? (isArabic ? 'في قائمة جديدنا (انقر لإرجاعه)' : "In What's New (Click to revert)")
+                        : (isArabic ? 'تحويل لقائمة جديدنا' : "Convert to What's New")}
                     </span>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => {
-                        setEditingItem(item);
-                        setIsModalOpen(true);
-                      }}
-                      className="w-10 h-10 bg-neutral-100 hover:bg-black hover:text-yellow text-dark rounded-xl transition-all flex items-center justify-center group/btn"
-                      title="Edit"
-                    >
-                      <Edit size={18} />
-                    </button>
-                    <button 
-                      onClick={() => handleDeleteItem(item.id)}
-                      className="w-10 h-10 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-xl transition-all flex items-center justify-center group/btn"
-                      title="Delete"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
+                  </button>
                 </div>
               </div>
             </motion.div>
@@ -787,7 +869,13 @@ export default function AdminDashboard() {
           </AnimatePresence>
         </div>
           </>
-        ) : (
+        )}
+
+        {activeTab === 'offers' && (
+          <AdminOffersTab isArabic={isArabic} />
+        )}
+
+        {activeTab === 'settings' && (
           <div className="space-y-10">
             {/* Title & Save Bar */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white border border-black/5 rounded-[2rem] p-8 shadow-sm">
@@ -1330,18 +1418,41 @@ export default function AdminDashboard() {
                     </div>
                   </label>
 
-                  <label className="block">
-                    <span className="text-xs font-black uppercase text-dark/40 tracking-widest block mb-2">التصنيف</span>
+                  <div className="block">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-black uppercase text-dark/40 tracking-widest block">
+                        {isArabic ? 'التصنيف' : 'Category'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await ensureNewCategoryExists();
+                          setEditingItem(prev => ({ ...prev!, category: 'new' }));
+                        }}
+                        className={`text-[10px] font-black px-2.5 py-1 rounded-lg flex items-center gap-1 transition-all cursor-pointer ${
+                          editingItem?.category === 'new'
+                            ? 'bg-emerald-600 text-white shadow-sm'
+                            : 'bg-neutral-200 hover:bg-black hover:text-yellow text-dark'
+                        }`}
+                      >
+                        <span>{isArabic ? 'نقل لقائمة جديدنا' : 'Move to New'}</span>
+                      </button>
+                    </div>
                     <select 
-                      value={editingItem?.category || categories[0]?.id || 'grills'}
+                      value={editingItem?.category || categories[0]?.id || 'main'}
                       onChange={e => setEditingItem(prev => ({ ...prev!, category: e.target.value }))}
-                      className="w-full bg-neutral-100 border-none rounded-2xl px-5 py-4 focus:ring-2 focus:ring-yellow font-bold text-dark appearance-none"
+                      className="w-full bg-neutral-100 border-none rounded-2xl px-5 py-4 focus:ring-2 focus:ring-yellow font-bold text-dark appearance-none cursor-pointer"
                     >
+                      {!categories.some(c => c.id === 'new') && (
+                        <option value="new">{isArabic ? 'جديدنا' : "What's New"}</option>
+                      )}
                       {categories.map(cat => (
-                        <option key={cat.id} value={cat.id}>{cat.labelAr}</option>
+                        <option key={cat.id} value={cat.id}>
+                          {isArabic ? cat.labelAr : cat.label}
+                        </option>
                       ))}
                     </select>
-                  </label>
+                  </div>
 
                   <label className="block">
                     <span className="text-xs font-black uppercase text-dark/40 tracking-widest block mb-2">السعرات (اختياري)</span>
@@ -1610,6 +1721,7 @@ export default function AdminDashboard() {
                       </span>
                       <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
                         {[
+                          { name: 'Sparkles', labelAr: 'جديدنا', labelEn: 'Sparkles' },
                           { name: 'Flame', labelAr: 'مشويات', labelEn: 'Flame' },
                           { name: 'Utensils', labelAr: 'أدوات', labelEn: 'Utensils' },
                           { name: 'ChefHat', labelAr: 'طاهي', labelEn: 'ChefHat' },

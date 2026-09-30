@@ -52,3 +52,22 @@ export interface SiteSettings {
   verificationBadges: VerificationBadge[];
   socialLinks?: SocialMediaSettings;
 }
+
+export interface Offer {
+  id: string;
+  title: string;
+  titleAr: string;
+  subtitle?: string;
+  subtitleAr?: string;
+  imageUrl: string;
+  badge?: string;
+  badgeAr?: string;
+  targetDate: string; // ISO date string
+  isActive: boolean;
+  order?: number;
+  ctaText?: string;
+  ctaTextAr?: string;
+  ctaLink?: string;
+  createdAt?: string;
+}
+

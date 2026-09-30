@@ -30,6 +30,28 @@
         "isPopular": { "type": "boolean" }
       },
       "required": ["id", "name", "nameAr", "description", "descriptionAr", "price", "category", "image"]
+    },
+    "Offer": {
+      "title": "Offer",
+      "description": "Special promotion banner with countdown timer",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "titleAr": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "subtitleAr": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "badge": { "type": "string" },
+        "badgeAr": { "type": "string" },
+        "targetDate": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "order": { "type": "number" },
+        "ctaText": { "type": "string" },
+        "ctaTextAr": { "type": "string" },
+        "ctaLink": { "type": "string" }
+      },
+      "required": ["id", "titleAr", "imageUrl", "targetDate", "isActive"]
     }
   },
   "firestore": {
@@ -40,6 +62,10 @@
     "menuItems": {
       "schema": "MenuItem",
       "description": "Menu items collection"
+    },
+    "offers": {
+      "schema": "Offer",
+      "description": "Promotional offers collection"
     }
   }
 }

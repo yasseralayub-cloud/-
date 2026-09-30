@@ -2,13 +2,14 @@ import { MenuItem, Category } from '../types';
 
 export const categories: Category[] = [
   { id: 'all', label: 'All', labelAr: 'الكل', icon: 'Utensils', order: 0 },
-  { id: 'main', label: 'Grills', labelAr: 'المشويات', icon: 'ChefHat', order: 1 },
-  { id: 'shawarma', label: 'Shawarma', labelAr: 'قسم الشاورما', icon: 'Flame', order: 2 },
-  { id: 'appetizers', label: 'Appetizers', labelAr: 'المقبلات', icon: 'Salad', order: 3 },
-  { id: 'desserts', label: 'Desserts', labelAr: 'الحلويات', icon: 'IceCream', order: 4 },
-  { id: 'drinks', label: 'Drinks', labelAr: 'المشروبات', icon: 'GlassWater', order: 5 },
-  { id: 'coffee', label: 'Arabic Coffee', labelAr: 'القهوة العربية', icon: 'Coffee', order: 6 },
-  { id: 'games', label: 'Traditional Games', labelAr: 'الألعاب الشعبية', icon: 'Gamepad2', order: 7 },
+  { id: 'new', label: "What's New", labelAr: 'جديدنا', icon: 'Sparkles', order: 1 },
+  { id: 'main', label: 'Grills', labelAr: 'المشويات', icon: 'ChefHat', order: 2 },
+  { id: 'shawarma', label: 'Shawarma', labelAr: 'قسم الشاورما', icon: 'Flame', order: 3 },
+  { id: 'appetizers', label: 'Appetizers', labelAr: 'المقبلات', icon: 'Salad', order: 4 },
+  { id: 'desserts', label: 'Desserts', labelAr: 'الحلويات', icon: 'IceCream', order: 5 },
+  { id: 'drinks', label: 'Drinks', labelAr: 'المشروبات', icon: 'GlassWater', order: 6 },
+  { id: 'coffee', label: 'Arabic Coffee', labelAr: 'القهوة العربية', icon: 'Coffee', order: 7 },
+  { id: 'games', label: 'Traditional Games', labelAr: 'الألعاب الشعبية', icon: 'Gamepad2', order: 8 },
 ];
 
 export const menuItems: MenuItem[] = [

@@ -15,6 +15,7 @@ export default function CategoryFilter({ selectedCategory, onSelect, isArabic, c
     <div className="flex overflow-x-auto gap-3 px-6 py-6 no-scrollbar justify-start md:justify-center mb-4" dir={isArabic ? 'rtl' : 'ltr'}>
       {displayCategories.map((category) => {
         const isActive = selectedCategory === category.id;
+        const isNewCategory = category.id === 'new';
 
         return (
           <button
@@ -24,7 +25,9 @@ export default function CategoryFilter({ selectedCategory, onSelect, isArabic, c
               relative flex items-center justify-center px-6 py-3.5 rounded-2xl transition-all duration-300 shrink-0 cursor-pointer
               ${isActive 
                 ? 'text-black font-black scale-105' 
-                : 'bg-neutral-100/80 text-dark/60 hover:bg-neutral-200/80 hover:text-dark font-bold'}
+                : isNewCategory
+                  ? 'bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 font-black border border-amber-500/20'
+                  : 'bg-neutral-100/80 text-dark/60 hover:bg-neutral-200/80 hover:text-dark font-bold'}
             `}
           >
             <span className="text-xs uppercase tracking-wider relative z-10">

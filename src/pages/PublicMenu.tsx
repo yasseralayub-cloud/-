@@ -6,20 +6,24 @@ import CategoryFilter from '../components/CategoryFilter';
 import MenuCard from '../components/MenuCard';
 import VerificationCarousel from '../components/VerificationCarousel';
 import GreetingSplash from '../components/GreetingSplash';
+import OffersCarousel from '../components/OffersCarousel';
+import { LuxcodCredit } from '../components/LuxcodCredit';
 import { SnapchatModal } from '../components/SnapchatModal';
 import { SnapchatIcon, InstagramIcon, TikTokIcon, TwitterIcon } from '../components/SocialIcons';
-import { MenuItem, Category, SiteSettings, VerificationBadge } from '../types';
+import { MenuItem, Category, SiteSettings, VerificationBadge, Offer } from '../types';
 import { resolveVerificationBadges } from '../lib/badgeUtils';
 import { db } from '../lib/firebase';
 import { collection, doc, onSnapshot } from 'firebase/firestore';
 import { categories as mockCategories, menuItems as mockMenuItems } from '../data/mockMenu';
 import { defaultSiteSettings } from '../data/defaultSettings';
+import { defaultOffers } from '../data/mockOffers';
 
 export default function PublicMenu() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [isArabic, setIsArabic] = useState(true);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [offers, setOffers] = useState<Offer[]>([]);
   const [settings, setSettings] = useState<SiteSettings>(defaultSiteSettings);
   const [certCollectionBadges, setCertCollectionBadges] = useState<VerificationBadge[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,10 +38,29 @@ export default function PublicMenu() {
       const cats = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Category));
       // Filter out invalid items
       const validCats = cats.filter(c => c && c.id && (c.label || c.labelAr));
-      setCategories([...validCats].sort((a, b) => (a.order || 0) - (b.order || 0)));
+      const allCats = [...validCats];
+      if (allCats.length > 0 && !allCats.some(c => c.id === 'new')) {
+        allCats.push({
+          id: 'new',
+          label: "What's New",
+          labelAr: 'جديدنا',
+          icon: 'Sparkles',
+          order: 1
+        });
+      }
+      setCategories(allCats.sort((a, b) => (a.order || 0) - (b.order || 0)));
     }, (err) => {
       console.error("Firestore loading categories error: ", err);
       setLoading(false);
+    });
+
+    // Fetch offers
+    const offersUnsub = onSnapshot(collection(db, 'offers'), (snapshot) => {
+      const fetched = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Offer));
+      const validOffers = fetched.filter(o => o && o.id && (o.titleAr || o.title));
+      setOffers(validOffers.sort((a, b) => (a.order || 0) - (b.order || 0)));
+    }, (err) => {
+      console.error("Firestore loading offers error: ", err);
     });
 
     // Fetch menu items
@@ -78,6 +101,7 @@ export default function PublicMenu() {
 
     return () => {
       categoriesUnsub();
+      offersUnsub();
       itemsUnsub();
       settingsUnsub();
       certsUnsub();
@@ -92,6 +116,10 @@ export default function PublicMenu() {
   const activeMenuItems = useMemo(() => {
     return menuItems.length > 0 ? menuItems : mockMenuItems;
   }, [menuItems]);
+
+  const activeOffers = useMemo(() => {
+    return offers.length > 0 ? offers : defaultOffers;
+  }, [offers]);
 
   const filteredMenuItems = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -159,6 +187,9 @@ export default function PublicMenu() {
         onOpenSnapchat={() => setIsSnapchatModalOpen(true)}
       />
 
+      {/* Special Offers Carousel - Full Width at Top of Page */}
+      <OffersCarousel offers={activeOffers} isArabic={isArabic} />
+
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-black py-20 mb-12">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
@@ -177,13 +208,16 @@ export default function PublicMenu() {
                 <>A Journey of <span className="text-yellow">Flavors</span></>
               )}
             </h1>
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-wrap gap-4 items-center">
               <button 
                 onClick={() => document.getElementById('menu-start')?.scrollIntoView({ behavior: 'smooth' })}
-                className="bg-yellow text-black font-black px-10 py-5 rounded-full hover:scale-105 transition-transform shadow-xl uppercase text-xs tracking-widest"
+                className="bg-yellow text-black font-black px-10 py-5 rounded-full hover:scale-105 transition-transform shadow-xl uppercase text-xs tracking-widest cursor-pointer"
               >
                 {isArabic ? 'استكشف القائمة' : 'Explore Menu'}
               </button>
+            </div>
+            <div className="mt-4">
+              <LuxcodCredit variant="hero" isArabic={isArabic} />
             </div>
           </motion.div>
 
@@ -285,15 +319,8 @@ export default function PublicMenu() {
                 >
                   <div className="flex items-center gap-6 mb-10 overflow-hidden">
                     <div className="h-[2px] bg-yellow/20 flex-grow" />
-                    <h3 className="text-2xl font-black text-dark flex items-center gap-4 whitespace-nowrap">
-                      <span className="w-12 h-12 bg-black text-yellow rounded-2xl flex items-center justify-center shadow-lg">
-                        <span className="text-xl">
-                          {cat.labelAr ? cat.labelAr[0] : (cat.label ? cat.label[0] : '★')} 
-                        </span>
-                      </span>
-                      <span className="uppercase tracking-tighter">
-                        {isArabic ? (cat.labelAr || cat.label) : (cat.label || cat.labelAr)}
-                      </span>
+                    <h3 className="text-2xl font-black text-dark whitespace-nowrap uppercase tracking-tighter">
+                      {isArabic ? (cat.labelAr || cat.label) : (cat.label || cat.labelAr)}
                     </h3>
                     <div className="h-[2px] bg-yellow/20 flex-grow" />
                   </div>
@@ -560,6 +587,8 @@ export default function PublicMenu() {
             </div>
           )}
 
+          {/* Luxcod Credit Button */}
+          <LuxcodCredit isArabic={isArabic} />
         </div>
       </footer>
 

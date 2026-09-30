@@ -57,7 +57,7 @@ export default function MenuCard({
     >
       {/* Popular Badge */}
       {item.isPopular && (
-        <div className={`absolute top-4 ${isArabic ? 'left-4' : 'right-4'} bg-yellow text-black px-4 py-1.5 text-[10px] font-black uppercase tracking-widest z-10 shadow-lg rounded-full flex items-center gap-1.5`}>
+        <div className="absolute top-4 right-4 bg-yellow text-black px-4 py-1.5 text-[10px] font-black uppercase tracking-widest z-10 shadow-lg rounded-full flex items-center gap-1.5">
           <Flame size={12} fill="currentColor" />
           {isArabic ? 'الأكثر طلباً' : 'Popular'}
         </div>
