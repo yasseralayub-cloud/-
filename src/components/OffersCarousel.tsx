@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Clock, Flame } from 'lucide-react';
-import { Offer } from '../types';
+import { Clock, Flame, Sparkles } from 'lucide-react';
+import { Offer, FallbackOfferSettings } from '../types';
 
 interface OffersCarouselProps {
   offers: Offer[];
   isArabic: boolean;
+  fallbackOffer?: FallbackOfferSettings | null;
 }
 
 interface TimeRemaining {
@@ -122,10 +123,8 @@ function OfferCountdownTimer({ targetDate, isArabic }: { targetDate: string; isA
   );
 }
 
-export default function OffersCarousel({ offers, isArabic }: OffersCarouselProps) {
-  // Only display active offers
-  const activeOffers = offers.filter(o => o && o.isActive);
-
+export default function OffersCarousel({ offers, isArabic, fallbackOffer }: OffersCarouselProps) {
+  const [now, setNow] = useState(() => Date.now());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const touchStartX = useRef<number | null>(null);
@@ -133,33 +132,49 @@ export default function OffersCarousel({ offers, isArabic }: OffersCarouselProps
   const touchStartY = useRef<number | null>(null);
   const isDragging = useRef<boolean>(false);
 
-  // If no active offers, don't render section
-  if (activeOffers.length === 0) {
-    return null;
-  }
+  // Keep current time updated every second so expired offers disappear in real time
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
-  // Ensure current index is within bounds
-  const safeIndex = currentIndex >= activeOffers.length ? 0 : currentIndex;
-  const currentOffer = activeOffers[safeIndex];
+  // Filter only active AND strictly unexpired offers
+  const validActiveOffers = useMemo(() => {
+    return offers.filter(o => {
+      if (!o || !o.isActive) return false;
+      if (!o.targetDate) return false;
+      const targetTime = new Date(o.targetDate).getTime();
+      if (isNaN(targetTime)) return false;
+      return targetTime > now;
+    });
+  }, [offers, now]);
+
+  // Ensure current index is within bounds of remaining valid offers
+  const safeIndex = validActiveOffers.length === 0 ? 0 : (currentIndex >= validActiveOffers.length ? 0 : currentIndex);
+  const currentOffer = validActiveOffers[safeIndex];
 
   const handleNext = useCallback(() => {
-    setCurrentIndex((prev) => (prev + 1) % activeOffers.length);
-  }, [activeOffers.length]);
+    if (validActiveOffers.length === 0) return;
+    setCurrentIndex((prev) => (prev + 1) % validActiveOffers.length);
+  }, [validActiveOffers.length]);
 
   const handlePrev = useCallback(() => {
-    setCurrentIndex((prev) => (prev - 1 + activeOffers.length) % activeOffers.length);
-  }, [activeOffers.length]);
+    if (validActiveOffers.length === 0) return;
+    setCurrentIndex((prev) => (prev - 1 + validActiveOffers.length) % validActiveOffers.length);
+  }, [validActiveOffers.length]);
 
   // Automatic slide rotation
   useEffect(() => {
-    if (activeOffers.length <= 1 || isPaused) return;
+    if (validActiveOffers.length <= 1 || isPaused) return;
 
     const timer = setInterval(() => {
       handleNext();
     }, 6000); // 6 seconds per slide
 
     return () => clearInterval(timer);
-  }, [activeOffers.length, isPaused, handleNext]);
+  }, [validActiveOffers.length, isPaused, handleNext]);
 
   // Touch handlers for seamless mobile touch swipe
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -224,6 +239,56 @@ export default function OffersCarousel({ offers, isArabic }: OffersCarouselProps
     setIsPaused(false);
   };
 
+  // If no valid active offers exist, check if a single fallback image is configured from admin
+  if (validActiveOffers.length === 0) {
+    if (fallbackOffer && fallbackOffer.imageUrl) {
+      return (
+        <section 
+          className="relative w-full bg-neutral-950 border-b border-yellow/20 select-none py-5 sm:py-7 px-4 sm:px-6"
+          dir={isArabic ? 'rtl' : 'ltr'}
+          aria-label={isArabic ? 'قسم العروض' : 'Offers Section'}
+        >
+          <div className="max-w-5xl mx-auto">
+            {/* Header Above Image */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-3 border-b border-white/10">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Flame size={17} className="text-yellow fill-yellow animate-bounce" />
+                  <span className="text-yellow text-xs font-black uppercase tracking-wider">
+                    {isArabic ? 'قسم العروض' : 'Special Offers'}
+                  </span>
+                </div>
+                <h2 className="text-white text-xl sm:text-2xl md:text-3xl font-black leading-snug">
+                  {isArabic 
+                    ? (fallbackOffer.titleAr || fallbackOffer.title || 'عروضنا المميزة')
+                    : (fallbackOffer.title || fallbackOffer.titleAr || 'Special Offers')}
+                </h2>
+                {(fallbackOffer.subtitleAr || fallbackOffer.subtitle) && (
+                  <p className="text-white/60 text-xs sm:text-sm mt-0.5 font-medium">
+                    {isArabic ? fallbackOffer.subtitleAr : fallbackOffer.subtitle}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Single Fallback Image */}
+            <div className="relative w-full rounded-2xl sm:rounded-3xl overflow-hidden bg-black shadow-2xl border border-white/10 flex items-center justify-center min-h-[220px] sm:min-h-[360px] md:min-h-[440px]">
+              <img
+                src={fallbackOffer.imageUrl}
+                alt={fallbackOffer.titleAr || fallbackOffer.title || (isArabic ? 'صورة العروض' : 'Offers Banner')}
+                className="w-full h-auto max-h-[70vh] sm:max-h-[520px] object-contain rounded-xl sm:rounded-2xl transition-all"
+                draggable={false}
+              />
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    // No active offers and no fallback image: hide section completely
+    return null;
+  }
+
   return (
     <section 
       className="relative w-full bg-neutral-950 border-b border-yellow/20 select-none py-5 sm:py-7 px-4 sm:px-6"
@@ -241,9 +306,9 @@ export default function OffersCarousel({ offers, isArabic }: OffersCarouselProps
               <span className="text-yellow text-xs font-black uppercase tracking-wider">
                 {isArabic ? 'قسم العروض' : 'Special Offers'}
               </span>
-              {activeOffers.length > 1 && (
+              {validActiveOffers.length > 1 && (
                 <span className="text-[11px] font-mono text-white/60 bg-white/10 px-2 py-0.5 rounded-full font-bold">
-                  {safeIndex + 1} / {activeOffers.length}
+                  {safeIndex + 1} / {validActiveOffers.length}
                 </span>
               )}
             </div>
@@ -293,7 +358,7 @@ export default function OffersCarousel({ offers, isArabic }: OffersCarouselProps
         </div>
 
         {/* 3. Bottom Slide Indicators & Touch Hint */}
-        {activeOffers.length > 1 && (
+        {validActiveOffers.length > 1 && (
           <div className="flex items-center justify-between mt-3 px-2 text-white/60 text-xs">
             <span className="font-medium">
               {isArabic ? '👈 اسحب الصورة باللمس للتنقل بين العروض' : '👈 Swipe to browse offers'}
@@ -301,7 +366,7 @@ export default function OffersCarousel({ offers, isArabic }: OffersCarouselProps
 
             {/* Indicator Dots */}
             <div className="flex items-center gap-1.5" dir="ltr">
-              {activeOffers.map((offer, idx) => (
+              {validActiveOffers.map((offer, idx) => (
                 <button
                   key={offer.id || idx}
                   onClick={() => setCurrentIndex(idx)}

@@ -10,7 +10,7 @@ import OffersCarousel from '../components/OffersCarousel';
 import { LuxcodCredit } from '../components/LuxcodCredit';
 import { SnapchatModal } from '../components/SnapchatModal';
 import { SnapchatIcon, InstagramIcon, TikTokIcon, TwitterIcon } from '../components/SocialIcons';
-import { MenuItem, Category, SiteSettings, VerificationBadge, Offer } from '../types';
+import { MenuItem, Category, SiteSettings, VerificationBadge, Offer, FallbackOfferSettings } from '../types';
 import { resolveVerificationBadges } from '../lib/badgeUtils';
 import { db } from '../lib/firebase';
 import { collection, doc, onSnapshot } from 'firebase/firestore';
@@ -24,6 +24,7 @@ export default function PublicMenu() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [offers, setOffers] = useState<Offer[]>([]);
+  const [fallbackOffer, setFallbackOffer] = useState<FallbackOfferSettings | null>(null);
   const [settings, setSettings] = useState<SiteSettings>(defaultSiteSettings);
   const [certCollectionBadges, setCertCollectionBadges] = useState<VerificationBadge[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,6 +62,17 @@ export default function PublicMenu() {
       setOffers(validOffers.sort((a, b) => (a.order || 0) - (b.order || 0)));
     }, (err) => {
       console.error("Firestore loading offers error: ", err);
+    });
+
+    // Fetch fallback offer banner
+    const fallbackOfferUnsub = onSnapshot(doc(db, 'settings', 'fallbackOffer'), (docSnap) => {
+      if (docSnap.exists()) {
+        setFallbackOffer(docSnap.data() as FallbackOfferSettings);
+      } else {
+        setFallbackOffer(null);
+      }
+    }, (err) => {
+      console.error("Firestore loading fallback offer error: ", err);
     });
 
     // Fetch menu items
@@ -102,6 +114,7 @@ export default function PublicMenu() {
     return () => {
       categoriesUnsub();
       offersUnsub();
+      fallbackOfferUnsub();
       itemsUnsub();
       settingsUnsub();
       certsUnsub();
@@ -118,8 +131,13 @@ export default function PublicMenu() {
   }, [menuItems]);
 
   const activeOffers = useMemo(() => {
-    return offers.length > 0 ? offers : defaultOffers;
-  }, [offers]);
+    if (offers.length > 0) return offers;
+    // If fallbackOffer is configured, do not show mock offers
+    if (fallbackOffer?.imageUrl || settings.fallbackOffer?.imageUrl) {
+      return [];
+    }
+    return defaultOffers;
+  }, [offers, fallbackOffer, settings.fallbackOffer]);
 
   const filteredMenuItems = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -188,22 +206,26 @@ export default function PublicMenu() {
       />
 
       {/* Special Offers Carousel - Full Width at Top of Page */}
-      <OffersCarousel offers={activeOffers} isArabic={isArabic} />
+      <OffersCarousel 
+        offers={activeOffers} 
+        fallbackOffer={fallbackOffer || settings.fallbackOffer} 
+        isArabic={isArabic} 
+      />
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-black py-20 mb-12">
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      <section className="relative overflow-hidden bg-black py-8 md:py-10 mb-6 md:mb-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-center">
           <motion.div
             initial={{ opacity: 0, x: isArabic ? 100 : -100 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8 }}
           >
-            <h2 className="text-yellow text-[10px] font-black uppercase tracking-[0.3em] mb-4">
+            <h2 className="text-yellow text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] mb-2">
               {isArabic ? 'تذوق المعنى الحقيقي للمشويات' : 'Taste the real grill'}
             </h2>
-            <h1 className="text-white text-5xl md:text-7xl font-black mb-8 leading-[1.1] uppercase">
+            <h1 className="text-white text-2xl sm:text-3xl md:text-4xl font-black mb-4 leading-tight uppercase">
               {isArabic ? (
-                <>رحلة من <span className="text-yellow">النكهات</span><br />المميزة</>
+                <>رحلة من <span className="text-yellow">النكهات</span> المميزة</>
               ) : (
                 <>A Journey of <span className="text-yellow">Flavors</span></>
               )}
@@ -211,12 +233,12 @@ export default function PublicMenu() {
             <div className="flex flex-wrap gap-4 items-center">
               <button 
                 onClick={() => document.getElementById('menu-start')?.scrollIntoView({ behavior: 'smooth' })}
-                className="bg-yellow text-black font-black px-10 py-5 rounded-full hover:scale-105 transition-transform shadow-xl uppercase text-xs tracking-widest cursor-pointer"
+                className="bg-yellow text-black font-black px-6 py-2.5 sm:px-8 sm:py-3 rounded-full hover:scale-105 transition-transform shadow-md uppercase text-xs tracking-wider cursor-pointer"
               >
                 {isArabic ? 'استكشف القائمة' : 'Explore Menu'}
               </button>
             </div>
-            <div className="mt-4">
+            <div className="mt-2.5">
               <LuxcodCredit variant="hero" isArabic={isArabic} />
             </div>
           </motion.div>
@@ -227,11 +249,11 @@ export default function PublicMenu() {
             transition={{ duration: 1 }}
             className="hidden lg:block relative"
           >
-            <div className="absolute inset-0 bg-yellow/20 blur-[120px] rounded-full" />
+            <div className="absolute inset-0 bg-yellow/15 blur-[80px] rounded-full" />
             <img 
               src="https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&q=80&w=800" 
               alt="Grill Masterpiece" 
-              className="relative rounded-[3rem] shadow-2xl border border-white/5 rotate-3 hover:rotate-0 transition-transform duration-700"
+              className="relative max-h-52 w-full object-cover rounded-2xl shadow-xl border border-white/5 rotate-2 hover:rotate-0 transition-transform duration-500"
             />
           </motion.div>
         </div>

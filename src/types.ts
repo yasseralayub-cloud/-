@@ -43,6 +43,15 @@ export interface SocialMediaSettings {
   workingHoursAr?: string;
 }
 
+export interface FallbackOfferSettings {
+  imageUrl: string;
+  title?: string;
+  titleAr?: string;
+  subtitle?: string;
+  subtitleAr?: string;
+  updatedAt?: string;
+}
+
 export interface SiteSettings {
   vatEnabled: boolean;
   vatRate: number; // e.g., 15
@@ -51,6 +60,7 @@ export interface SiteSettings {
   crNumber?: string; // e.g., 1010123456
   verificationBadges: VerificationBadge[];
   socialLinks?: SocialMediaSettings;
+  fallbackOffer?: FallbackOfferSettings;
 }
 
 export interface Offer {

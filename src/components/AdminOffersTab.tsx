@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../lib/firebase';
 import { collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot } from 'firebase/firestore';
-import { Offer } from '../types';
+import { Offer, FallbackOfferSettings } from '../types';
 import { defaultOffers } from '../data/mockOffers';
 import { 
   Plus, Edit, Trash2, Image as ImageIcon, Clock, 
-  Flame, Upload, Calendar, RefreshCw, XCircle
+  Flame, Upload, Calendar, RefreshCw, XCircle, Sparkles, CheckCircle2, Save, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -120,6 +120,116 @@ export default function AdminOffersTab({ isArabic }: AdminOffersTabProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [previewTab, setPreviewTab] = useState<'upload' | 'url'>('upload');
+
+  // Fallback offer state (the single image shown when all offers expire)
+  const [fallbackOffer, setFallbackOffer] = useState<FallbackOfferSettings | null>(null);
+  const [isEditingFallback, setIsEditingFallback] = useState(false);
+  const [fallbackForm, setFallbackForm] = useState<FallbackOfferSettings>({
+    imageUrl: '',
+    titleAr: '',
+    title: '',
+    subtitleAr: '',
+    subtitle: ''
+  });
+  const [fallbackUploadProgress, setFallbackUploadProgress] = useState<number | null>(null);
+  const [isSavingFallback, setIsSavingFallback] = useState(false);
+
+  // Real-time Firestore sync for fallback offer
+  useEffect(() => {
+    const unsubFallback = onSnapshot(doc(db, 'settings', 'fallbackOffer'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data() as FallbackOfferSettings;
+        setFallbackOffer(data);
+        setFallbackForm(data);
+      } else {
+        setFallbackOffer(null);
+      }
+    }, (err) => {
+      console.error("Firestore fallback offer error:", err);
+    });
+
+    return () => unsubFallback();
+  }, []);
+
+  const handleFallbackImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 15 * 1024 * 1024) {
+      alert(isArabic ? 'حجم الملف كبير جداً (الحد الأقصى 15 ميجابايت)' : 'File too large (Max 15MB)');
+      return;
+    }
+
+    try {
+      setFallbackUploadProgress(40);
+      const dataUrl = await processDeviceImage(file, 1200, 900, 0.78);
+      setFallbackUploadProgress(85);
+      setFallbackForm(prev => ({ ...prev, imageUrl: dataUrl }));
+      setFallbackUploadProgress(100);
+      setTimeout(() => setFallbackUploadProgress(null), 400);
+    } catch (err: any) {
+      console.error("Fallback image upload error:", err);
+      alert(isArabic ? `فشل تحميل الصورة: ${err?.message || ''}` : `Failed to upload image: ${err?.message || ''}`);
+      setFallbackUploadProgress(null);
+    }
+  };
+
+  const handleSaveFallbackOffer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fallbackForm.imageUrl?.trim()) {
+      alert(isArabic ? 'يرجى تحميل الصورة البديلة أولاً' : 'Please upload the fallback image first');
+      return;
+    }
+    setIsSavingFallback(true);
+    try {
+      const payload: FallbackOfferSettings = {
+        imageUrl: fallbackForm.imageUrl,
+        titleAr: (fallbackForm.titleAr || '').trim() || (isArabic ? 'عروضنا المميزة' : 'Special Offers'),
+        title: (fallbackForm.title || '').trim() || (fallbackForm.titleAr || 'Special Offers'),
+        subtitleAr: (fallbackForm.subtitleAr || '').trim(),
+        subtitle: (fallbackForm.subtitle || '').trim(),
+        updatedAt: new Date().toISOString()
+      };
+      await setDoc(doc(db, 'settings', 'fallbackOffer'), payload);
+      setIsEditingFallback(false);
+      alert(isArabic ? 'تم حفظ الصورة البديلة بنجاح! ستظهر كصورة واحدة تلقائياً عند انتهاء وقت العروض.' : 'Fallback image saved! Will appear automatically when offers expire.');
+    } catch (err: any) {
+      console.error("Save fallback offer error:", err);
+      alert(isArabic ? `فشل الحفظ: ${err?.message || ''}` : `Save failed: ${err?.message || ''}`);
+    } finally {
+      setIsSavingFallback(false);
+    }
+  };
+
+  const handleDeleteFallbackOffer = async () => {
+    if (!window.confirm(isArabic ? 'هل أنت متأكد من حذف الصورة البديلة؟' : 'Are you sure you want to delete the fallback image?')) {
+      return;
+    }
+    try {
+      await deleteDoc(doc(db, 'settings', 'fallbackOffer'));
+      setFallbackForm({ imageUrl: '', titleAr: '', title: '', subtitleAr: '', subtitle: '' });
+      setIsEditingFallback(false);
+      alert(isArabic ? 'تم حذف الصورة البديلة بنجاح' : 'Fallback image deleted');
+    } catch (err: any) {
+      console.error("Delete fallback offer error:", err);
+      alert(isArabic ? `فشل الحذف: ${err?.message || ''}` : `Delete failed: ${err?.message || ''}`);
+    }
+  };
+
+  const handleExtendOffer = async (offer: Offer, daysToAdd: number = 3) => {
+    try {
+      const newDate = new Date();
+      newDate.setDate(newDate.getDate() + daysToAdd);
+      await updateDoc(doc(db, 'offers', offer.id), {
+        targetDate: newDate.toISOString(),
+        isActive: true
+      });
+      alert(isArabic ? `تم تمديد العرض بنجاح لمدة ${daysToAdd} أيام إضافية!` : `Offer extended by ${daysToAdd} days!`);
+    } catch (err: any) {
+      console.error("Extend offer error:", err);
+      alert(isArabic ? `فشل تمديد العرض: ${err?.message || ''}` : `Failed to extend offer: ${err?.message || ''}`);
+    }
+  };
 
   // Real-time Firestore sync for offers
   useEffect(() => {
@@ -320,7 +430,252 @@ export default function AdminOffersTab({ isArabic }: AdminOffersTabProps) {
         </div>
       </div>
 
+      {/* Fallback Image Management Card (Appears when all timed offers expire) */}
+      <div className="bg-white border border-black/5 rounded-[2.5rem] p-6 sm:p-8 shadow-sm">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 mb-6 border-b border-black/5">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-black shrink-0">
+              <Sparkles size={24} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-xl font-black text-dark">
+                  {isArabic ? 'الصورة البديلة عند انتهاء وقت العروض' : 'Fallback Image When Offers Expire'}
+                </h3>
+                {fallbackOffer?.imageUrl ? (
+                  <span className="text-[10px] font-black bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>{isArabic ? 'مفعلة وجاهزة' : 'Active & Ready'}</span>
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold bg-neutral-100 text-dark/50 px-2.5 py-0.5 rounded-full">
+                    {isArabic ? 'غير محددة بعد' : 'Not set yet'}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-dark/40 mt-0.5">
+                {isArabic 
+                  ? 'هذه الصورة ستظهر تلقائياً كصورة واحدة مميزة في قسم العروض فور انتهاء وقت كافة العروض المحددة بمؤقت' 
+                  : 'This image will appear automatically as a single image when all timed offers expire'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {!isEditingFallback ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFallbackForm(fallbackOffer || { imageUrl: '', titleAr: 'عروضنا المميزة', title: 'Special Offers' });
+                    setIsEditingFallback(true);
+                  }}
+                  className="bg-yellow hover:bg-yellow/90 text-black font-black text-xs px-5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+                >
+                  <Upload size={14} />
+                  <span>{fallbackOffer?.imageUrl ? (isArabic ? 'تغيير الصورة' : 'Change Image') : (isArabic ? 'رفع الصورة البديلة' : 'Upload Fallback Image')}</span>
+                </button>
+                {fallbackOffer?.imageUrl && (
+                  <button
+                    type="button"
+                    onClick={handleDeleteFallbackOffer}
+                    className="bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Trash2 size={14} />
+                    <span>{isArabic ? 'حذف' : 'Delete'}</span>
+                  </button>
+                )}
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsEditingFallback(false)}
+                className="bg-neutral-100 hover:bg-neutral-200 text-dark font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <X size={14} />
+                <span>{isArabic ? 'إلغاء' : 'Cancel'}</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Editing or Uploading Form */}
+        {isEditingFallback ? (
+          <form onSubmit={handleSaveFallbackOffer} className="space-y-5 bg-neutral-50 p-6 rounded-3xl border border-black/5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-black uppercase text-dark mb-1">
+                  {isArabic ? 'عنوان الصورة البديلة (بالعربي)' : 'Fallback Image Title (Arabic)'}
+                </label>
+                <input
+                  type="text"
+                  value={fallbackForm.titleAr || ''}
+                  onChange={(e) => setFallbackForm(prev => ({ ...prev, titleAr: e.target.value }))}
+                  placeholder={isArabic ? 'مثال: عروضنا المميزة مستمرة' : 'e.g., Special Offers'}
+                  className="w-full bg-white border border-black/10 rounded-xl px-4 py-2.5 text-sm font-bold text-dark focus:outline-none focus:border-yellow"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase text-dark mb-1">
+                  {isArabic ? 'الوصف الفرعي (اختياري)' : 'Subtitle (Optional)'}
+                </label>
+                <input
+                  type="text"
+                  value={fallbackForm.subtitleAr || ''}
+                  onChange={(e) => setFallbackForm(prev => ({ ...prev, subtitleAr: e.target.value }))}
+                  placeholder={isArabic ? 'مثال: ترقبوا أقوى العروض قريباً' : 'e.g., Stay tuned for more'}
+                  className="w-full bg-white border border-black/10 rounded-xl px-4 py-2.5 text-sm font-medium text-dark focus:outline-none focus:border-yellow"
+                />
+              </div>
+            </div>
+
+            {/* Image upload area */}
+            <div className="space-y-3">
+              <label className="block text-xs font-black uppercase text-dark">
+                {isArabic ? 'صورة العرض البديلة (التي ستظهر عند انتهاء العروض) *' : 'Fallback Image *'}
+              </label>
+
+              <div className="flex flex-col sm:flex-row gap-4 items-center">
+                {/* File picker */}
+                <label className="flex-1 w-full flex flex-col items-center justify-center h-36 border-2 border-dashed border-amber-300 hover:border-yellow rounded-2xl cursor-pointer bg-white hover:bg-yellow/5 transition-all p-4 text-center">
+                  <Upload size={24} className="text-amber-500 mb-1.5" />
+                  <p className="text-xs font-black text-dark">
+                    {isArabic ? 'اضغط لاختيار صورة من جوالك أو كمبيوترك' : 'Click to select image from device'}
+                  </p>
+                  <p className="text-[10px] text-dark/40 mt-1">PNG, JPG, WEBP حتى 15 ميجابايت (يتم ضغطها تلقائياً)</p>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFallbackImageUpload}
+                    className="hidden"
+                  />
+                </label>
+
+                {/* Direct URL input */}
+                <div className="w-full sm:w-1/2 space-y-2">
+                  <span className="text-[11px] font-bold text-dark/50 block">
+                    {isArabic ? 'أو ضع رابط الصورة مباشرة (URL):' : 'Or enter direct image URL:'}
+                  </span>
+                  <input
+                    type="text"
+                    value={fallbackForm.imageUrl || ''}
+                    onChange={(e) => setFallbackForm(prev => ({ ...prev, imageUrl: e.target.value }))}
+                    placeholder="https://..."
+                    className="w-full bg-white border border-black/10 rounded-xl px-4 py-2.5 text-xs font-mono text-dark focus:outline-none focus:border-yellow"
+                  />
+                </div>
+              </div>
+
+              {fallbackUploadProgress !== null && (
+                <div className="w-full bg-neutral-200 rounded-full h-2 overflow-hidden">
+                  <div className="bg-yellow h-2 transition-all duration-300" style={{ width: `${fallbackUploadProgress}%` }} />
+                </div>
+              )}
+
+              {/* Preview */}
+              {fallbackForm.imageUrl && (
+                <div className="mt-3 bg-neutral-900 rounded-2xl p-2 max-h-60 flex items-center justify-center overflow-hidden border border-black/10">
+                  <img
+                    src={fallbackForm.imageUrl}
+                    alt="Fallback Preview"
+                    className="max-h-56 w-auto object-contain rounded-xl"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="submit"
+                disabled={isSavingFallback || !fallbackForm.imageUrl}
+                className="bg-black hover:bg-neutral-800 text-yellow font-black px-6 py-3 rounded-xl transition-all flex items-center gap-2 text-xs shadow-md disabled:opacity-50 cursor-pointer"
+              >
+                <Save size={16} />
+                <span>{isSavingFallback ? (isArabic ? 'جاري الحفظ...' : 'Saving...') : (isArabic ? 'حفظ الصورة البديلة' : 'Save Fallback Image')}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsEditingFallback(false)}
+                className="bg-neutral-200 hover:bg-neutral-300 text-dark font-bold px-5 py-3 rounded-xl transition-all text-xs cursor-pointer"
+              >
+                {isArabic ? 'إلغاء' : 'Cancel'}
+              </button>
+            </div>
+          </form>
+        ) : fallbackOffer?.imageUrl ? (
+          /* Active Fallback Image Preview */
+          <div className="flex flex-col md:flex-row items-center gap-6 bg-neutral-50 p-5 rounded-3xl border border-black/5">
+            <div className="relative w-full md:w-64 h-40 bg-neutral-900 rounded-2xl overflow-hidden flex items-center justify-center p-2 shrink-0">
+              <img
+                src={fallbackOffer.imageUrl}
+                alt="Active Fallback Offer"
+                className="max-h-full max-w-full object-contain rounded-xl"
+              />
+              <span className="absolute bottom-2 right-2 bg-black/80 backdrop-blur-md text-yellow text-[9px] font-black px-2 py-0.5 rounded-full border border-yellow/30">
+                {isArabic ? 'صورة وحيدة بديلة' : 'Single Fallback'}
+              </span>
+            </div>
+
+            <div className="flex-1 space-y-2 text-center md:text-right">
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
+                <h4 className="text-lg font-black text-dark">
+                  {fallbackOffer.titleAr || (isArabic ? 'عروضنا المميزة' : 'Special Offers')}
+                </h4>
+                <span className="text-[10px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md flex items-center gap-1">
+                  <CheckCircle2 size={12} className="text-emerald-600" />
+                  <span>{isArabic ? 'جاهزة للعرض التلقائي' : 'Ready for auto-display'}</span>
+                </span>
+              </div>
+              {fallbackOffer.subtitleAr && (
+                <p className="text-xs text-dark/60 font-medium">
+                  {fallbackOffer.subtitleAr}
+                </p>
+              )}
+              <div className="text-xs text-dark/50 bg-white p-3 rounded-xl border border-black/5 leading-relaxed">
+                ℹ️ {isArabic 
+                  ? 'بمجرد انتهاء مؤقتات العد التنازلي للعروض النشطة، يتم إيقاف عرض صور تلك العروض تلقائياً وتظهر هذه الصورة الواحدة لجميع زوار المنيو.' 
+                  : 'As soon as active offer timers expire, those offers are hidden automatically and this single image is shown.'}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-amber-50 border border-amber-200/70 p-5 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-right">
+            <div>
+              <p className="text-xs font-black text-amber-900 mb-0.5">
+                {isArabic ? 'لم يتم رفع صورة بديلة بعد' : 'No fallback image uploaded yet'}
+              </p>
+              <p className="text-[11px] text-amber-800/80">
+                {isArabic 
+                  ? 'يُنصح برفع صورة واحدة الآن (مثل بوستر دائم أو شعار العروض) لتظهر تلقائياً عندما تنتهي مواعيد العروض المؤقتة.' 
+                  : 'Upload a single image now to appear automatically when timed offers expire.'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setFallbackForm({ imageUrl: '', titleAr: 'عروضنا المميزة', title: 'Special Offers' });
+                setIsEditingFallback(true);
+              }}
+              className="bg-amber-500 hover:bg-amber-600 text-black font-black text-xs px-5 py-3 rounded-2xl transition-all shadow-md shrink-0 cursor-pointer flex items-center gap-2"
+            >
+              <Upload size={14} />
+              <span>{isArabic ? 'رفع الصورة البديلة الآن' : 'Upload Fallback Image Now'}</span>
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Offers List Grid */}
+      <div className="flex items-center justify-between pt-2">
+        <h3 className="text-xl font-black text-dark flex items-center gap-2">
+          <span>{isArabic ? 'قائمة العروض المؤقتة' : 'Timed Offers List'}</span>
+          <span className="text-xs font-mono bg-neutral-200 text-dark/60 px-2 py-0.5 rounded-full font-bold">
+            {offers.length}
+          </span>
+        </h3>
+      </div>
+
       {offers.length === 0 ? (
         <div className="bg-white border border-black/5 rounded-[2.5rem] p-12 text-center shadow-sm">
           <div className="w-20 h-20 bg-yellow/20 text-amber-600 rounded-3xl mx-auto flex items-center justify-center mb-5">
@@ -405,19 +760,61 @@ export default function AdminOffersTab({ isArabic }: AdminOffersTabProps) {
 
                 {/* Card Body & Countdown */}
                 <div className="p-5 flex-1 flex flex-col justify-between">
-                  <div className="space-y-2 mb-4">
+                  <div className="space-y-3 mb-4">
                     {/* Countdown Timer Display */}
-                    <div className={`px-3 py-2 rounded-xl flex items-center justify-between text-xs font-bold ${
-                      timeInfo.isExpired
-                        ? 'bg-red-50 text-red-700 border border-red-200'
-                        : 'bg-amber-500/10 text-amber-900 border border-amber-500/20'
-                    }`}>
-                      <div className="flex items-center gap-1.5">
-                        <Clock size={14} className={timeInfo.isExpired ? 'text-red-500' : 'text-amber-600'} />
-                        <span>{isArabic ? 'المتبقي للمؤقت:' : 'Timer left:'}</span>
+                    {timeInfo.isExpired ? (
+                      <div className="bg-red-500/10 border border-red-500/30 text-red-700 px-3.5 py-2.5 rounded-2xl text-xs font-bold space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <XCircle size={15} className="text-red-600 shrink-0" />
+                            <span>{isArabic ? 'انتهى وقت العرض' : 'Offer Expired'}</span>
+                          </div>
+                          <span className="text-[10px] font-black uppercase bg-red-600 text-white px-2 py-0.5 rounded-full">
+                            {isArabic ? 'متوقف تلقائياً' : 'Auto Hidden'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-red-600/80 font-medium leading-tight">
+                          {isArabic ? 'تم إيقاف عرض هذه الصورة تلقائياً لجميع العملاء لانتهاء وقتها.' : 'Automatically hidden from customers because time ended.'}
+                        </p>
+                        <div className="flex items-center gap-1.5 pt-1.5 border-t border-red-200">
+                          <span className="text-[10px] text-dark/60 font-bold">{isArabic ? 'تمديد سريع:' : 'Quick extend:'}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleExtendOffer(offer, 1)}
+                            className="bg-white hover:bg-yellow hover:text-black text-dark font-bold text-[10px] px-2 py-1 rounded-lg border border-red-200 transition-all cursor-pointer shadow-xs"
+                          >
+                            {isArabic ? '+يوم' : '+1d'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleExtendOffer(offer, 3)}
+                            className="bg-white hover:bg-yellow hover:text-black text-dark font-bold text-[10px] px-2 py-1 rounded-lg border border-red-200 transition-all cursor-pointer shadow-xs"
+                          >
+                            {isArabic ? '+3 أيام' : '+3d'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleExtendOffer(offer, 7)}
+                            className="bg-white hover:bg-yellow hover:text-black text-dark font-bold text-[10px] px-2 py-1 rounded-lg border border-red-200 transition-all cursor-pointer shadow-xs"
+                          >
+                            {isArabic ? '+أسبوع' : '+7d'}
+                          </button>
+                        </div>
                       </div>
-                      <span className="font-mono font-black">{timeInfo.text}</span>
-                    </div>
+                    ) : (
+                      <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-900 px-3.5 py-2.5 rounded-2xl text-xs font-bold space-y-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                            </span>
+                            <span>{isArabic ? 'نشط ويظهر للعملاء:' : 'Active on Menu:'}</span>
+                          </div>
+                          <span className="font-mono font-black text-emerald-800">{timeInfo.text}</span>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="text-[11px] text-dark/40 flex items-center gap-1.5 pt-1">
                       <Calendar size={13} />
