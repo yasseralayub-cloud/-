@@ -72,7 +72,8 @@ export interface Offer {
   imageUrl: string;
   badge?: string;
   badgeAr?: string;
-  targetDate: string; // ISO date string
+  startDate?: string; // ISO date string - when offer activates and displays automatically
+  targetDate: string; // ISO date string - when offer expires and auto-hides
   isActive: boolean;
   order?: number;
   ctaText?: string;

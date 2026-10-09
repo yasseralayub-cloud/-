@@ -7,7 +7,6 @@ import MenuCard from '../components/MenuCard';
 import VerificationCarousel from '../components/VerificationCarousel';
 import GreetingSplash from '../components/GreetingSplash';
 import OffersCarousel from '../components/OffersCarousel';
-import { LuxcodCredit } from '../components/LuxcodCredit';
 import { SnapchatModal } from '../components/SnapchatModal';
 import { SnapchatIcon, InstagramIcon, TikTokIcon, TwitterIcon } from '../components/SocialIcons';
 import { MenuItem, Category, SiteSettings, VerificationBadge, Offer, FallbackOfferSettings } from '../types';
@@ -237,9 +236,6 @@ export default function PublicMenu() {
               >
                 {isArabic ? 'استكشف القائمة' : 'Explore Menu'}
               </button>
-            </div>
-            <div className="mt-2.5">
-              <LuxcodCredit variant="hero" isArabic={isArabic} />
             </div>
           </motion.div>
 
@@ -608,9 +604,6 @@ export default function PublicMenu() {
               )}
             </div>
           )}
-
-          {/* Luxcod Credit Button */}
-          <LuxcodCredit isArabic={isArabic} />
         </div>
       </footer>
 

@@ -140,10 +140,20 @@ export default function OffersCarousel({ offers, isArabic, fallbackOffer }: Offe
     return () => clearInterval(timer);
   }, []);
 
-  // Filter only active AND strictly unexpired offers
+  // Filter only active, already started (now >= startDate), and strictly unexpired (now < targetDate) offers
   const validActiveOffers = useMemo(() => {
     return offers.filter(o => {
       if (!o || !o.isActive) return false;
+      
+      // 1. If start date is set in the future, offer is scheduled and will auto-activate once start date arrives
+      if (o.startDate) {
+        const startTime = new Date(o.startDate).getTime();
+        if (!isNaN(startTime) && startTime > now) {
+          return false;
+        }
+      }
+
+      // 2. End date check: must not have expired
       if (!o.targetDate) return false;
       const targetTime = new Date(o.targetDate).getTime();
       if (isNaN(targetTime)) return false;
